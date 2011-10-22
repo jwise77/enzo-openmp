@@ -228,7 +228,8 @@ int ActiveParticleType_SpringelHernquist::EvaluateFormation
 }
 
 // SH star feedback
-int ActiveParticleType_SpringelHernquist::EvaluateFeedback(grid *thisgrid_orig, ActiveParticleFormationData &data)
+int ActiveParticleType_SpringelHernquist::EvaluateFeedback
+(grid *thisgrid_orig, ActiveParticleFormationData &data)
 {
   return SUCCESS;
 }

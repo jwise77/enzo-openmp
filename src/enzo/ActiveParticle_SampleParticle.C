@@ -70,7 +70,8 @@ int ActiveParticleType_SampleParticle::EvaluateFormation(grid *thisgrid_orig, Ac
   return 0;
 }
 
-int ActiveParticleType_SampleParticle::EvaluateFeedback(grid *thisgrid_orig, ActiveParticleFormationData &data)
+int ActiveParticleType_SampleParticle::EvaluateFeedback
+(grid *thisgrid_orig, ActiveParticleFormationData &data)
 {
   return SUCCESS;
 }

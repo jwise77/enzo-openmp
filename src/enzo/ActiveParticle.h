@@ -46,15 +46,15 @@ public:
   ~ActiveParticleType(){};
   ActiveParticleType(ActiveParticleType*& part){};
   virtual int GetEnabledParticleID(int id = -1) = 0;
-  //#ifdef ACTIVE_PARTICLE_IMPLEMENTED
+  star_type ReturnType(void) {return type; };
+#ifdef ACTIVE_PARTICLE_IMPLEMENTED
   ActiveParticleType(grid *_grid, int _id, int _level);
   ActiveParticleType(StarBuffer *buffer, int n);
   ActiveParticleType(StarBuffer buffer) ;
   ActiveParticleType* copy(void);
 
   int   ReturnID(void) { return Identifier; };
-  float ReturnMass(void) { return Mass; };
-  float ReturnMetallicity(void) {return Metallicity; };
+  double ReturnMass(void) { return Mass; };
   float ReturnBirthTime(void) { return BirthTime; };
   float ReturnDynamicalTime(void) { return DynamicalTime; };
   star_type ReturnType(void) {return type; };
@@ -66,17 +66,10 @@ public:
   void  SetGridID(int i) { GridID = i; };
   grid *ReturnCurrentGrid(void) { return CurrentGrid; };
   void  AssignCurrentGrid(grid *a) { this->CurrentGrid = a; };
-  void  AddMass(float dM) { Mass += dM; };
-  void  SetMass(float M) {Mass = M; }
+  void  AddMass(double dM) { Mass += dM; };
 
   FLOAT *ReturnPosition(void) { return pos; }
-  FLOAT ReturnXPosition(void) { return pos[0]; }
-  FLOAT ReturnYPosition(void) { return pos[1]; }
-  FLOAT ReturnZPosition(void) { return pos[2]; }
   float *ReturnVelocity(void) { return vel; }
-  float ReturnXVelocity(void) { return vel[0]; }
-  float ReturnYVelocity(void) { return vel[1]; }
-  float ReturnZVelocity(void) { return vel[2]; }
   void    ConvertMassToSolar(void);
   void    Merge(Star a);
   void    Merge(Star *a);
@@ -93,7 +86,7 @@ public:
   int   DeleteCopyInGridGlobal(LevelHierarchyEntry *LevelArray[]);
   void    CopyToGrid(void);
   void  MirrorToParticle(void);
-  virtual bool  IsARadiationSource(FLOAT Time) { return FALSE; };
+  virtual bool  IsARadiationSource(FLOAT Time) { return FALSE };
   int   DeleteParticle(LevelHierarchyEntry *LevelArray[]);
   int   DisableParticle(LevelHierarchyEntry *LevelArray[]);
   void  ActivateNewStar(FLOAT Time, float Timestep);
@@ -101,23 +94,23 @@ public:
   int SphereContained(LevelHierarchyEntry *LevelArray[], int level, 
               float Radius);
 
-  //ActiveParticle* StarBufferToList(StarBuffer *buffer, int n);
+  ActiveParticle* StarBufferToList(StarBuffer *buffer, int n);
   StarBuffer* StarListToBuffer(int n);
 
-  //#endif /* IMPLEMENTED */
+#endif /* IMPLEMENTED */
     
 protected:
-  grid        *CurrentGrid;
-  FLOAT	 pos[MAX_DIMENSION];
-  float        vel[MAX_DIMENSION];
-  double       Mass;		// Msun
-  float        BirthTime;
-  float        DynamicalTime;      
-  float        Metallicity;
-  PINT         Identifier;
-  int		 level;
-  int		 GridID;
-  star_type    type;
+  grid *CurrentGrid;
+  FLOAT	pos[MAX_DIMENSION];
+  float vel[MAX_DIMENSION];
+  double Mass;		// Msun
+  float BirthTime;
+  float DynamicalTime;      
+  float Metallicity;
+  PINT Identifier;
+  int level;
+  int GridID;
+  star_type type;
   
   bool Active;
   int EnabledParticleID;
@@ -153,10 +146,10 @@ struct ActiveParticleFormationData {
   int Vel1Num;
   int Vel2Num;
   int Vel3Num;
-  int MetalNum;
-  int ColourNum;
   int TENum;
   int GENum;
+  int MetalNum;
+  int ColourNum;
   int level;
 };
 
@@ -180,10 +173,10 @@ const struct ActiveParticleFormationData data_default = {
   -1,       // Vel1Num
   -1,       // Vel2Num
   -1,       // Vel3Num
-  -1,       // MetalNum
-  -1,       // ColourNum
   -1,       // TENum
   -1,       // GENum
+  -1,       // MetalNum
+  -1,       // ColourNum
   -1        // level
 };
 

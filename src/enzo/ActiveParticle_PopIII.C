@@ -260,7 +260,8 @@ int ActiveParticleType_PopIII::EvaluateFormation
 }
 
 // Pop III feedback (done through rad. transfer and feedback spheres)
-int ActiveParticleType_PopIII::EvaluateFeedback(grid *thisgrid_orig, ActiveParticleFormationData &data)
+int ActiveParticleType_PopIII::EvaluateFeedback
+(grid *thisgrid_orig, ActiveParticleFormationData &supp_data)
 {
   return SUCCESS;
 }
