@@ -32,24 +32,26 @@ struct ActiveParticleFormationDataFlags;
 
 class ActiveParticleType
 {
-  public:
-    void static ConstructData(grid *_grid,
-            ActiveParticleFormationDataFlags &flags,
-            ActiveParticleFormationData &data);
-    void static DestroyData(grid *_grid,
-            ActiveParticleFormationData &data);
-    /* Several pure virtual functions */
+public:
+  void static ConstructData(grid *_grid,
+			    ActiveParticleFormationDataFlags &flags,
+			    ActiveParticleFormationData &data);
+  void static DestroyData(grid *_grid,
+			  ActiveParticleFormationData &data);
+  /* Several pure virtual functions */
+  
+  /* This should return the number of new star particles created, and should
+   * create them. */
+  ActiveParticleType(){};
+  ~ActiveParticleType(){};
+  ActiveParticleType(ActiveParticleType*& part){};
+  virtual int GetEnabledParticleID(int id = -1) = 0;
+#ifdef ACTIVE_PARTICLE_IMPLEMENTED
 
-    /* This should return the number of new star particles created, and should
-     * create them. */
-    ActiveParticleType(){};
-    ~ActiveParticleType(){};
-    ActiveParticleType(ActiveParticleType*& part){};
-  //#ifdef ACTIVE_PARTICLE_IMPLEMENTED
-    ActiveParticleType(grid *_grid, int _id, int _level);
-    ActiveParticleType(StarBuffer *buffer, int n);
-    ActiveParticleType(StarBuffer buffer) ;
-    ActiveParticleType* copy(void);
+  ActiveParticleType(grid *_grid, int _id, int _level);
+  ActiveParticleType(StarBuffer *buffer, int n);
+  ActiveParticleType(StarBuffer buffer) ;
+  ActiveParticleType* copy(void);
 
   int   ReturnID(void) { return Identifier; };
   float ReturnMass(void) { return Mass; };
@@ -104,11 +106,11 @@ class ActiveParticleType
   StarBuffer* StarListToBuffer(int n);
   //#endif /* IMPLEMENTED */
     
-  protected:
+protected:
   grid        *CurrentGrid;
   FLOAT	 pos[MAX_DIMENSION];
   float        vel[MAX_DIMENSION];
-  float        Mass;		// Msun
+  double       Mass;		// Msun
   float        BirthTime;
   float        DynamicalTime;      
   float        Metallicity;
@@ -118,8 +120,9 @@ class ActiveParticleType
   star_type    type;
   
   bool Active;
-  
-  private: /* Cannot be accessed by subclasses! */
+  int EnabledParticleID;
+
+private: /* Cannot be accessed by subclasses! */
   
   friend class grid;
   friend class ActiveParticleType_info;
@@ -220,33 +223,56 @@ void EnableActiveParticleType(char *active_particle_type_name);
 
 class ParticleBufferHandler
 {
-  public:
-    ParticleBufferHandler() {};
-    ~ParticleBufferHandler() {};
-    /*virtual void WriteBuffers(hid_t group);*/
+public:
+  ParticleBufferHandler() {};
+  ~ParticleBufferHandler() {};
+  /*virtual void WriteBuffers(hid_t group);*/
 };
 
 class ActiveParticleType_info
 {
-    public:
+public:
        
-       /* We will add more functions to this as necessary */
-       ActiveParticleType_info(
-           std::string this_name,
-           int (*ffunc)(grid *thisgrid_orig, ActiveParticleFormationData &data),
-           void (*dfunc)(ActiveParticleFormationDataFlags &flags),
-           ParticleBufferHandler *(*abfunc)(int NumberOfParticles),
-	   int (*ifunc)(),
-	   int (*feedfunc)(grid *thisgrid_orig, ActiveParticleFormationData &data)
-           ){
-        this->formation_function = ffunc;
-        this->describe_data_flags = dfunc;
-        this->allocate_buffers = abfunc;
-	this->initialize = ifunc;
-	this->feedback_function = feedfunc;
+  /* We will add more functions to this as necessary */
+  ActiveParticleType_info
+  (std::string this_name,
+   int (*ffunc)(grid *thisgrid_orig, ActiveParticleFormationData &data),
+   void (*dfunc)(ActiveParticleFormationDataFlags &flags),
+   ParticleBufferHandler *(*abfunc)(int NumberOfParticles),
+   ActiveParticleType *particle
+   int (*ifunc)(),
+   int (*feedfunc)(grid *thisgrid_orig, ActiveParticleFormationData &data)
+   ){
+    this->formation_function = ffunc;
+    this->describe_data_flags = dfunc;
+    this->allocate_buffers = abfunc;
+    this->particle_instance = particle;
+    this->initialize = ifunc;
+    this->feedback_function = feedfunc;
+    get_active_particle_types()[this_name] = this;
+  }
 
-        get_active_particle_types()[this_name] = this;
-       }
+  static int count(){return get_active_particle_types().size();}
+  int GetEnabledParticleID(){return this->MyEnabledParticleID;}
+
+  int Enable(){
+    /* 0-indexed */
+    this->MyEnabledParticleID = this->TotalEnabledParticleCount++;
+    this->particle_instance->GetEnabledParticleID(this->MyEnabledParticleID);
+    return this->MyEnabledParticleID;
+  }
+
+  int (*formation_function)(grid *thisgrid_orig, ActiveParticleFormationData &data);
+  void (*describe_data_flags)(ActiveParticleFormationDataFlags &flags);
+  ParticleBufferHandler* (*allocate_buffers)(int NumberOfParticles);
+  ActiveParticleType* particle_instance;
+private:
+
+  /* This is distinct from the global as a redundant error-checking
+     pattern */
+  static int TotalEnabledParticleCount;
+  int MyEnabledParticleID; /* Defaults to 0 */
+  int *EnabledParticleIDPointer;
 
   static int count(){return get_active_particle_types().size();}
   
@@ -255,7 +281,31 @@ class ActiveParticleType_info
   int (*feedback_function)(grid *thisgrid_orig, ActiveParticleFormationData &data);
   void (*describe_data_flags)(ActiveParticleFormationDataFlags &flags);
   ParticleBufferHandler* (*allocate_buffers)(int NumberOfParticles);
+
 };
+
+template <class active_particle_class>
+ActiveParticleType_info *register_ptype(std::string name)
+{
+  active_particle_class *pp = new active_particle_class();
+  ActiveParticleType_info *pinfo = new ActiveParticleType_info
+    (name,
+     (&active_particle_class::EvaluateFormation),
+     (&active_particle_class::DescribeSupplementalData),
+     (&active_particle_class::AllocateBuffers),
+     pp);
+  return pinfo;
+}
+
+#define ENABLED_PARTICLE_ID_ACCESSOR					\
+  int GetEnabledParticleID(int myid = -1) {				\
+    static int ParticleID = -1;						\
+    if (myid >= 0) {							\
+      if (ParticleID != -1) ENZO_FAIL("Setting Particle ID Twice!");	\
+      ParticleID = myid;						\
+    }									\
+    return ParticleID;							\
+  };
 
 #endif
 

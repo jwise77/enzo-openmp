@@ -54,6 +54,7 @@ public:
   static ParticleBufferHandler *AllocateBuffers(int NumberOfParticles);
   static int EvaluateFeedback(grid *thisgrid_orig, ActiveParticleFormationData &data);
   static int Initialize(void);
+  ENABLED_PARTICLE_ID_ACCESSOR
 };
 
 int ActiveParticleType_SampleParticle::Initialize(void)
@@ -93,6 +94,8 @@ ParticleBufferHandler *ActiveParticleType_SampleParticle::AllocateBuffers(int Nu
 
 
 namespace {
+//    ActiveParticleType_info *SampleParticleInfo = 
+//        register_ptype <ActiveParticleType_SampleParticle> ("SampleParticle");
   ActiveParticleType_info *SampleInfo = new ActiveParticleType_info
     ("SampleParticle", (&ActiveParticleType_SampleParticle::EvaluateFormation),
      (&ActiveParticleType_SampleParticle::DescribeSupplementalData),
