@@ -17,7 +17,6 @@
 #include "RateData.h"
 #include "RadiationFieldData.h"
 #include "TestProblemData.h"
-//#include "CosmicRayData.h"
 
 /* These are the different types of baryon fields. */
 
@@ -261,8 +260,8 @@ const star_type
   PopIII_CF = PARTICLE_TYPE_COLOR_STAR, // Non-radiating PopIII
   MBH = PARTICLE_TYPE_MBH,
   Kravtsov = PARTICLE_TYPE_STAR,
-  CenOstriker = PARTICLE_TYPE_STAR;
-
+  CenOstriker = PARTICLE_TYPE_STAR,
+  SinkParticle = PARTICLE_TYPE_MUST_REFINE;
 
 /* Define a float/int union. */
 
