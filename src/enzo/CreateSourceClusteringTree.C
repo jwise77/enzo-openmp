@@ -109,7 +109,7 @@ int CreateSourceClusteringTree(int nShine, SuperSourceData *SourceList,
 
   FLOAT center[MAX_DIMENSION];
   double weight = 0.0;
-  float lw_lum = 0.0;
+  float lw_lum = 0.0f;
   
   for (dim = 0; dim < MAX_DIMENSION; dim++)
     center[dim] = 0.0;
@@ -215,7 +215,7 @@ int CreateSourceClusteringTree(int nShine, SuperSourceData *SourceList,
   }
 
   /* Divide into children if there are more than one source */
-  
+
   if (nShine > 2) {
 
     // Left leaf (copy to temp, make tree, copy back)
@@ -227,7 +227,7 @@ int CreateSourceClusteringTree(int nShine, SuperSourceData *SourceList,
       for (i = 0; i < nleft; i++)
 	SourceList[i] = temp[i];
       SourceClusteringTree = SourceClusteringTree->ParentSource;
-      delete temp;
+      delete [] temp;
     }
 
     // Right leaf
@@ -239,7 +239,7 @@ int CreateSourceClusteringTree(int nShine, SuperSourceData *SourceList,
       for (i = 0; i < nright; i++)
 	SourceList[nleft+i] = temp[i];
       SourceClusteringTree = SourceClusteringTree->ParentSource;
-      delete temp;
+      delete [] temp;
     }
   } // ENDIF nShine > 1
 

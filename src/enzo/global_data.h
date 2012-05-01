@@ -97,6 +97,8 @@ EXTERN int extract;
 	    60 = TurbulenceSimulation
 	                                                                  */
 EXTERN int CheckpointRestart;
+EXTERN int WriteGhostZones;
+EXTERN int ReadGhostZones;
 EXTERN int ProblemType;
 #ifdef NEW_PROBLEM_TYPES
 EXTERN char *ProblemTypeName;
@@ -437,6 +439,7 @@ EXTERN FLOAT EvolveRefineRegionRightEdge[MAX_REFINE_REGIONS][3]; // right corner
 
 EXTERN int MyProcessorNumber;
 EXTERN int NumberOfProcessors;
+EXTERN int NumberOfCores;
 EXTERN float CommunicationTime;
 
 /* Parameter to indicate if top grid should do parallel IO
