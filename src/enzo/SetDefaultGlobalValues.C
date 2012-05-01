@@ -444,6 +444,8 @@ int SetDefaultGlobalValues(TopGridData &MetaData)
   MultiMetals                      = FALSE;
   NumberOfParticleAttributes       = INT_UNDEFINED;
   ParticleTypeInFile               = TRUE;
+  ReadGhostZones                   = FALSE;
+  WriteGhostZones                  = FALSE;
   OutputParticleTypeGrouping       = FALSE;
 
   IsotropicConduction = FALSE;
