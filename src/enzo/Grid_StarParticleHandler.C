@@ -27,6 +27,7 @@
 #include "Grid.h"
 #include "fortran.def"
 #include "CosmologyParameters.h"
+#include "phys_constants.h"
 
 /* function prototypes */
  
@@ -407,7 +408,6 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
  
   int dim, i, j, k, index, size, field, GhostZones = DEFAULT_GHOST_ZONES;
   int DensNum, GENum, TENum, Vel1Num, Vel2Num, Vel3Num, B1Num, B2Num, B3Num;
-  const double m_h = 1.673e-24;
 
   /* Find Multi-species fields. */
   int DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum, HMNum, H2INum, H2IINum,
@@ -591,12 +591,23 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
   float OverDensityThreshold;
   if (PopIIIOverDensityThreshold < 0) {
-    OverDensityThreshold = -PopIIIOverDensityThreshold * 1.673e-24 / DensityUnits;
+    OverDensityThreshold = -PopIIIOverDensityThreshold * mh / DensityUnits;
     if (OverDensityThreshold < 1)
       OverDensityThreshold = huge_number;
   }
   else
     OverDensityThreshold = PopIIIOverDensityThreshold;
+
+  /* Piggyback on the PopIIIOverDensityThreshold formalism (directly above):
+     If StarMakerUsePhysicalDensityThreshold is set to true, convert from proper
+     hydrogen number density (which is the input parameter) to actual physical units,
+     and then convert into code density units.
+   */
+  if(StarMakerUsePhysicalDensityThreshold == TRUE){
+    OverDensityThreshold = StarMakerOverDensityThreshold * 1.22 * mh / DensityUnits;
+  } else {
+    OverDensityThreshold = StarMakerOverDensityThreshold;
+  }
  
   float CellWidthTemp = float(CellWidth[0][0]);
   float PopIIIMass = (PopIIIInitialMassFunction == TRUE) ? 
@@ -668,7 +679,7 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
        &MaximumNumberOfNewParticles, CellLeftEdge[0], CellLeftEdge[1],
           CellLeftEdge[2], &GhostZones,
        &MetallicityField, &HydroMethod, &StarMakerMinimumDynamicalTime,
-       &StarMakerOverDensityThreshold, &StarMakerMassEfficiency,
+       &OverDensityThreshold, &StarMakerMassEfficiency,
        &StarMakerMinimumMass, &level, &NumberOfNewParticles, 
        tg->ParticlePosition[0], tg->ParticlePosition[1],
           tg->ParticlePosition[2],
@@ -870,7 +881,7 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
       // change the unit for StarMakerOverDensity for cosmological run
       if (ComovingCoordinates)
-	StarMakerOverDensityThreshold *= m_h / DensityUnits;   
+	StarMakerOverDensityThreshold *= mh / DensityUnits;   
 
       FORTRAN_NAME(star_maker7)(
        GridDimension, GridDimension+1, GridDimension+2,
@@ -897,7 +908,7 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
       // make it back to original 
       if (ComovingCoordinates)
-	StarMakerOverDensityThreshold /= m_h / DensityUnits;  
+	StarMakerOverDensityThreshold /= mh / DensityUnits;  
 
       for (i = NumberOfNewParticlesSoFar; i < NumberOfNewParticles; i++)
           tg->ParticleType[i] = NormalStarType;
@@ -1365,7 +1376,6 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
     //---- MODIFIED SF ALGORITHM (NO-JEANS MASS, NO dt DEPENDENCE, NO STOCHASTIC SF)
 
-      double pc = 3.086e18;
       float mbhradius = MBHFeedbackThermalRadius * pc / LengthUnits; 
  
       FORTRAN_NAME(star_feedback7)(
