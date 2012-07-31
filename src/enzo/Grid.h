@@ -172,7 +172,13 @@ class grid
 //
   int TimestepsSinceCreation; 	// Not really since creation anymore... 
   				// resets everytime the grid outputs
-
+//
+// Performance counters for load balancing
+//
+  float ParentCostPerCell;
+  float ParentEstimatedCostPerCell;
+  float ObservedCost;
+  float EstimatedCost;
 
 //
 // Friends
@@ -1500,6 +1506,25 @@ int CreateParticleTypeGrouping(hid_t ptype_dset,
     return ProcessorNumber;
   }
 
+  /* Performance counter for load balancing */
+
+  void ResetCost() { ObservedCost = 0.0; };
+  float ReturnCost() { return ObservedCost; };
+  float ReturnEstimatedCost() { return EstimatedCost; };
+  void SetEstimatedCost(float a) { EstimatedCost = a; };
+  void AddToCost(double a) { 
+    if (MyProcessorNumber == ProcessorNumber)
+      ObservedCost += a;
+  };
+  void SetParentCost(grid *Parent) {
+    if (MyProcessorNumber == ProcessorNumber) {
+      this->ParentCostPerCell = Parent->ReturnCost() / Parent->GetGridSize();
+      this->ParentEstimatedCostPerCell = Parent->ReturnEstimatedCost() / Parent->GetGridSize();
+      this->ObservedCost = this->ParentCostPerCell * this->GetGridSize();
+      this->EstimatedCost = this->ParentEstimatedCostPerCell * this->GetGridSize();
+    }
+  };
+
 /* Send a region from a real grid to a 'fake' grid on another processor. */
 
   int CommunicationSendRegion(grid *ToGrid, int ToProcessor, int SendField, 
@@ -1516,6 +1541,14 @@ int CreateParticleTypeGrouping(hid_t ptype_dset,
 
   int CommunicationMoveGrid(int ToProcessor, int MoveParticles = TRUE,
 			    int DeleteAllFields = TRUE);
+
+/* Move only the fields from the grids */
+
+  int CommunicationMoveGrid1(int ToProcessor);
+
+/* Move the stars, particles, and photons from the grids */
+
+  int CommunicationMoveGrid2(int ToProcessor, int MoveParticles = TRUE);
 
 /* Send particles from one grid to another. */
 
@@ -1685,6 +1718,15 @@ int yEulerSweep(int i, int NumberOfSubgrids, fluxes *SubgridFluxes[],
 int zEulerSweep(int j, int NumberOfSubgrids, fluxes *SubgridFluxes[], 
 		Elong_int GridGlobalStart[], float *CellWidthTemp[], 
 		int GravityOn, int NumberOfColours, int colnum[], float *pressure);
+
+int inteuler(int idim,
+	     float *dslice, float *pslice, int gravity, float *grslice,
+	     float *geslice, float *uslice, float *vslice, float *wslice, 
+	     float *dxi, float *flatten, 
+	     float *dls, float *drs, float *pls, float *prs, float *gels,
+	     float *gers, float *uls, float *urs, float *vls, float *vrs,
+	     float *wls, float *wrs, int ncolors, float *colslice,
+	     float *colls, float *colrs);
 
 // AccelerationHack
 
@@ -2423,7 +2465,10 @@ int zEulerSweep(int j, int NumberOfSubgrids, fluxes *SubgridFluxes[],
 
   int UpdateStarParticles(int level);
 
-  int AddH2Dissociation(Star *AllStars);
+  int AddH2Dissociation(Star *AllStars, int NumberOfSources);
+
+  int AddH2DissociationFromTree(void);
+  int AddH2DissociationFromSources(Star *AllStars);
 
   int ReturnStarStatistics(int &Number, float &minLife);
 
