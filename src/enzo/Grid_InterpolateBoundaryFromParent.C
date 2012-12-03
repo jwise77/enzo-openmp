@@ -114,7 +114,7 @@ int grid::InterpolateBoundaryFromParent(grid *ParentGrid)
  
     int SecondOrderBFlag[MAX_NUMBER_OF_BARYON_FIELDS];
 
-    for (int i=0; i<MAX_NUMBER_OF_BARYON_FIELDS; i++) {
+    for (i=0; i<MAX_NUMBER_OF_BARYON_FIELDS; i++) {
       SecondOrderBFlag[i] = 0;
     }
 
@@ -327,19 +327,19 @@ int grid::InterpolateBoundaryFromParent(grid *ParentGrid)
 			      &SecondOrderBFlag[densfield], &interp_error);
       if (interp_error) {
 	printf("P%d: Error interpolating density.\n"
-		   "ParentGrid ID = %d\n"
-		   "\t LeftEdge  = %"PSYM" %"PSYM" %"PSYM"\n"
-		   "\t RightEdge = %"PSYM" %"PSYM" %"PSYM"\n"
-		   "ThisGrid ID = %d\n"
-		   "\t LeftEdge  = %"PSYM" %"PSYM" %"PSYM"\n"
-		   "\t RightEdge = %"PSYM" %"PSYM" %"PSYM"\n",
-		   MyProcessorNumber, ParentGrid->ID, 
-		   ParentGrid->GridLeftEdge[0], ParentGrid->GridLeftEdge[1], 
-		   ParentGrid->GridLeftEdge[2], ParentGrid->GridRightEdge[0], 
-		   ParentGrid->GridRightEdge[1], ParentGrid->GridRightEdge[2],
-		   this->ID, 
-		   this->GridLeftEdge[0], this->GridLeftEdge[1], 
-		   this->GridLeftEdge[2], this->GridRightEdge[0], 
+	       "ParentGrid ID = %d\n"
+	       "\t LeftEdge  = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM"\n"
+	       "\t RightEdge = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM"\n"
+	       "ThisGrid ID = %d\n"
+	       "\t LeftEdge  = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM"\n"
+	       "\t RightEdge = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM"\n",
+	       MyProcessorNumber, ParentGrid->ID, 
+	       ParentGrid->GridLeftEdge[0], ParentGrid->GridLeftEdge[1], 
+	       ParentGrid->GridLeftEdge[2], ParentGrid->GridRightEdge[0], 
+	       ParentGrid->GridRightEdge[1], ParentGrid->GridRightEdge[2],
+	       this->ID, 
+	       this->GridLeftEdge[0], this->GridLeftEdge[1], 
+	       this->GridLeftEdge[2], this->GridRightEdge[0], 
 	       this->GridRightEdge[1], this->GridRightEdge[2]);
 	ENZO_FAIL("");
       }
@@ -374,19 +374,19 @@ int grid::InterpolateBoundaryFromParent(grid *ParentGrid)
 				  &SecondOrderBFlag[field], &interp_error);
 	if (interp_error) {
 	  printf("P%d: Error interpolating field %d (%s).\n"
-		     "ParentGrid ID = %d\n"
-		     "\t LeftEdge  = %"PSYM" %"PSYM" %"PSYM"\n"
-		     "\t RightEdge = %"PSYM" %"PSYM" %"PSYM"\n"
-		     "ThisGrid ID = %d\n"
-		     "\t LeftEdge  = %"PSYM" %"PSYM" %"PSYM"\n"
-		 "\t RightEdge = %"PSYM" %"PSYM" %"PSYM"\n",
-		     MyProcessorNumber, field, DataLabel[field], ParentGrid->ID, 
-		     ParentGrid->GridLeftEdge[0], ParentGrid->GridLeftEdge[1], 
-		     ParentGrid->GridLeftEdge[2], ParentGrid->GridRightEdge[0], 
-		     ParentGrid->GridRightEdge[1], ParentGrid->GridRightEdge[2],
-		     this->ID, 
-		     this->GridLeftEdge[0], this->GridLeftEdge[1], 
-		     this->GridLeftEdge[2], this->GridRightEdge[0], 
+		 "ParentGrid ID = %d\n"
+		 "\t LeftEdge  = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM"\n"
+		 "\t RightEdge = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM"\n"
+		 "ThisGrid ID = %d\n"
+		 "\t LeftEdge  = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM"\n"
+		 "\t RightEdge = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM"\n",
+		 MyProcessorNumber, field, DataLabel[field], ParentGrid->ID, 
+		 ParentGrid->GridLeftEdge[0], ParentGrid->GridLeftEdge[1], 
+		 ParentGrid->GridLeftEdge[2], ParentGrid->GridRightEdge[0], 
+		 ParentGrid->GridRightEdge[1], ParentGrid->GridRightEdge[2],
+		 this->ID, 
+		 this->GridLeftEdge[0], this->GridLeftEdge[1], 
+		 this->GridLeftEdge[2], this->GridRightEdge[0], 
 		 this->GridRightEdge[1], this->GridRightEdge[2]);
 	  ENZO_FAIL("");
 	}
