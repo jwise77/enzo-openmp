@@ -27,6 +27,7 @@
 #include "Grid.h"
 #include "fortran.def"
 #include "CosmologyParameters.h"
+#include "phys_constants.h"
 
 /* function prototypes */
  
@@ -172,6 +173,35 @@ int star_maker9(int *nx, int *ny, int *nz, int *size,
 		int *typeold, PINT *idold, int *ctype,
 		float *jlrefine, float *temp, float *gamma, float *mu,
 		int *nproc, int *nstar);
+
+extern "C" void FORTRAN_NAME(star_maker_h2reg)(int *nx, int *ny, int *nz,
+             float *d, float *dm, float *temp, float *u, float *v, float *w,
+                float *cooltime,
+             float *dt, float *r, float *metal, float *dx, FLOAT *t, float *z, 
+             int *procnum,
+             float *d1, float *x1, float *v1, float *t1,
+             int *nmax, FLOAT *xstart, FLOAT *ystart, FLOAT *zstart, 
+     		 int *ibuff, 
+             int *imetal, hydro_method *imethod, 
+	     float *StarFormationEfficiency,
+             float *StarFormationNumberDensityThreshold, 
+             float *StarFormationMinimumMass, 
+             float *MinimumH2FractionForStarFormation,
+             int *StochasticStarFormation,
+             int *UseSobolevColumn,
+             float *SigmaOverR,
+             int *AssumeColdWarmPressureBalance,
+             float *H2DissociationFlux_MW, 
+             float *H2FloorInColdGas,
+             float *ColdGasTemperature,
+	     int *ran1_init,
+             int *level, int *grid_id,
+	     int *oldnp, FLOAT *oldxp, FLOAT *oldyp, FLOAT *oldzp,
+	     float *oldmp, float *oldtcp, int *oldtype,
+	     int *np, FLOAT *xp, FLOAT *yp, FLOAT *zp, 
+             float *up, float *vp, float *wp,
+             float *mp, float *tdp, float *tcp, float *metalf);
+
 
 #ifdef STAR1
 extern "C" void FORTRAN_NAME(star_feedback1)(int *nx, int *ny, int *nz,
@@ -356,7 +386,7 @@ extern "C" void FORTRAN_NAME(copy3d)(float *source, float *dest,
 #endif 
  
 int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
-			     float dtLevelAbove)
+			      float dtLevelAbove, float TopGridTimeStep)
 {
 
   if (!StarParticleCreation && !StarParticleFeedback)
@@ -376,9 +406,12 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
   /* initialize */
  
-  int dim, i, j, k, index, size, field, GhostZones = DEFAULT_GHOST_ZONES;
-  int DensNum, GENum, TENum, Vel1Num, Vel2Num, Vel3Num, B1Num, B2Num, B3Num,H2INum, H2IINum;
-  const double m_h = 1.673e-24;
+  int dim, i, j, k, index, size, field, GhostZones = NumberOfGhostZones;
+  int DensNum, GENum, TENum, Vel1Num, Vel2Num, Vel3Num, B1Num, B2Num, B3Num;
+
+  /* Find Multi-species fields. */
+  int DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum, HMNum, H2INum, H2IINum,
+    DINum, DIINum, HDINum; 
 
   /* If only star cluster formation, check now if we're restricting
      formation in a region. */
@@ -424,8 +457,8 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
   }
 
   if (MultiSpecies > 1) {
-    H2INum   = FindField(H2IDensity, FieldType, NumberOfBaryonFields);
-    H2IINum  = FindField(H2IIDensity, FieldType, NumberOfBaryonFields);
+      H2INum   = FindField(H2IDensity, FieldType, NumberOfBaryonFields);
+      H2IINum  = FindField(H2IIDensity, FieldType, NumberOfBaryonFields);
   }
 
   /* Find metallicity field and set flag. */
@@ -558,12 +591,23 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
   float OverDensityThreshold;
   if (PopIIIOverDensityThreshold < 0) {
-    OverDensityThreshold = -PopIIIOverDensityThreshold * 1.673e-24 / DensityUnits;
+    OverDensityThreshold = -PopIIIOverDensityThreshold * mh / DensityUnits;
     if (OverDensityThreshold < 1)
       OverDensityThreshold = huge_number;
   }
   else
     OverDensityThreshold = PopIIIOverDensityThreshold;
+
+  /* Piggyback on the PopIIIOverDensityThreshold formalism (directly above):
+     If StarMakerUsePhysicalDensityThreshold is set to true, convert from proper
+     hydrogen number density (which is the input parameter) to actual physical units,
+     and then convert into code density units.
+   */
+  if(StarMakerUsePhysicalDensityThreshold == TRUE){
+    OverDensityThreshold = StarMakerOverDensityThreshold * 1.22 * mh / DensityUnits;
+  } else {
+    OverDensityThreshold = StarMakerOverDensityThreshold;
+  }
  
   float CellWidthTemp = float(CellWidth[0][0]);
   float PopIIIMass = (PopIIIInitialMassFunction == TRUE) ? 
@@ -635,7 +679,7 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
        &MaximumNumberOfNewParticles, CellLeftEdge[0], CellLeftEdge[1],
           CellLeftEdge[2], &GhostZones,
        &MetallicityField, &HydroMethod, &StarMakerMinimumDynamicalTime,
-       &StarMakerOverDensityThreshold, &StarMakerMassEfficiency,
+       &OverDensityThreshold, &StarMakerMassEfficiency,
        &StarMakerMinimumMass, &level, &NumberOfNewParticles, 
        tg->ParticlePosition[0], tg->ParticlePosition[1],
           tg->ParticlePosition[2],
@@ -837,7 +881,7 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
       // change the unit for StarMakerOverDensity for cosmological run
       if (ComovingCoordinates)
-	StarMakerOverDensityThreshold *= m_h / DensityUnits;   
+	StarMakerOverDensityThreshold *= mh / DensityUnits;   
 
       FORTRAN_NAME(star_maker7)(
        GridDimension, GridDimension+1, GridDimension+2,
@@ -864,7 +908,7 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
       // make it back to original 
       if (ComovingCoordinates)
-	StarMakerOverDensityThreshold /= m_h / DensityUnits;  
+	StarMakerOverDensityThreshold /= mh / DensityUnits;  
 
       for (i = NumberOfNewParticlesSoFar; i < NumberOfNewParticles; i++)
           tg->ParticleType[i] = NormalStarType;
@@ -916,6 +960,73 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
       delete [] coolingrate;
 
     }
+
+
+    /* H2-regulated star formation. */
+
+    if ( STARMAKE_METHOD(H2REG_STAR) && 
+	 ( this->MakeStars || !StarFormationOncePerRootGridTimeStep ) ) {
+
+      if (IdentifySpeciesFields(DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum,
+                    HMNum, H2INum, H2IINum, DINum, DIINum, HDINum) == FAIL) {
+        ENZO_FAIL("Error in grid->IdentifySpeciesFields.\n");
+      }
+
+      NumberOfNewParticlesSoFar = NumberOfNewParticles;
+
+      /* If StarFormationOncePerRootGridTimeStep, use the root grid
+	 timestep for the star particle creation. Stars are only
+	 created once per root level time step. */
+      float TimeStep;
+      if(StarFormationOncePerRootGridTimeStep)
+	TimeStep = TopGridTimeStep;
+      else
+	TimeStep = dtFixed;
+
+      FORTRAN_NAME(star_maker_h2reg)(
+       GridDimension, GridDimension+1, GridDimension+2,
+       BaryonField[DensNum], BaryonField[HINum], temperature,
+       BaryonField[Vel1Num], BaryonField[Vel2Num], BaryonField[Vel3Num],
+       cooling_time, &TimeStep, BaryonField[NumberOfBaryonFields], 
+       MetalPointer, &CellWidthTemp, &Time, &zred, &MyProcessorNumber,
+       &DensityUnits, &LengthUnits, &VelocityUnits, &TimeUnits,
+       &MaximumNumberOfNewParticles, 
+       CellLeftEdge[0], CellLeftEdge[1], CellLeftEdge[2], &GhostZones, 
+       &MetallicityField, &HydroMethod,
+       &H2StarMakerEfficiency,
+       &H2StarMakerNumberDensityThreshold, 
+       &H2StarMakerMinimumMass,
+       &H2StarMakerMinimumH2FractionForStarFormation,
+       &H2StarMakerStochastic,
+       &H2StarMakerUseSobolevColumn,
+       &H2StarMakerSigmaOverR, 
+       &H2StarMakerAssumeColdWarmPressureBalance,
+       &H2StarMakerH2DissociationFlux_MW, 
+       &H2StarMakerH2FloorInColdGas,
+       &H2StarMakerColdGasTemperature,
+       &ran1_init,
+       &level, &ID, 
+       &NumberOfParticles,
+       ParticlePosition[0], ParticlePosition[1], ParticlePosition[2],
+       ParticleMass, ParticleAttribute[0], ParticleType, 
+       &NumberOfNewParticles,
+       tg->ParticlePosition[0], tg->ParticlePosition[1], 
+       tg->ParticlePosition[2], 
+       tg->ParticleVelocity[0], tg->ParticleVelocity[1], 
+       tg->ParticleVelocity[2], 
+       tg->ParticleMass, tg->ParticleAttribute[1], tg->ParticleAttribute[0],
+       tg->ParticleAttribute[2]);
+      
+      for (i = NumberOfNewParticlesSoFar; i < NumberOfNewParticles; i++)
+          tg->ParticleType[i] = NormalStarType;
+
+      /* If StarFormationOncePerRootGridTimeStep, reset
+	 this::MakeStars to 0, to prevent further star formation until
+	 next top level time step has been taken. */
+      if(StarFormationOncePerRootGridTimeStep)
+	this->MakeStars = 0;
+    }
+
 
     /* This creates sink particles which suck up mass off the grid. */
 
@@ -1265,7 +1376,6 @@ int grid::StarParticleHandler(HierarchyEntry* SubgridPointer, int level,
 
     //---- MODIFIED SF ALGORITHM (NO-JEANS MASS, NO dt DEPENDENCE, NO STOCHASTIC SF)
 
-      double pc = 3.086e18;
       float mbhradius = MBHFeedbackThermalRadius * pc / LengthUnits; 
  
       FORTRAN_NAME(star_feedback7)(

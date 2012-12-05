@@ -72,12 +72,17 @@
 #ifdef USE_MPI
 #include "mpi.h"
 #endif /* USE_MPI */
+
+#ifdef _OPENMP
+#include "omp.h"
+#endif
  
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <math.h>
 
+#include "EnzoTiming.h"
 #include "performance.h"
 #include "ErrorExceptions.h"
 #include "macros_and_parameters.h"
@@ -264,10 +269,15 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 
   FLOAT When, GridTime;
   double _mpi_time;
+  //float dtThisLevelSoFar = 0.0, dtThisLevel, dtGrid, dtActual, dtLimit;
+  //float dtThisLevelSoFar = 0.0, dtThisLevel;
   int cycle = 0, counter = 0, grid1, subgrid, grid2;
   HierarchyEntry *NextGrid;
   int dummy_int;
 
+  char level_name[MAX_LINE_LENGTH];
+  sprintf(level_name, "Level_%"ISYM, level);
+    
   // Update lcaperf "level" attribute
 
   Eint32 lcaperf_level = level;
@@ -284,6 +294,12 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
   fluxes ***SubgridFluxesEstimate = new fluxes **[NumberOfGrids];
   int *TotalStarParticleCountPrevious = new int[NumberOfGrids];
   RunEventHooks("EvolveLevelTop", Grids, *MetaData);
+
+  bool thread_grid_loop = false;
+#ifdef _OPENMP
+  thread_grid_loop = (level > 0) && 
+    (NumberOfGrids > NumberOfProcessors*omp_get_num_threads());
+#endif
 
 #ifdef FLUX_FIX
   /* Create a SUBling list of the subgrids */
@@ -331,7 +347,7 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
      put them into the SubgridFluxesEstimate array. */
  
   if(CheckpointRestart == TRUE) {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for if(thread_grid_loop) schedule(dynamic)
     for (grid1 = 0; grid1 < NumberOfGrids; grid1++) {
       if (Grids[grid1]->GridData->FillFluxesFromStorage(
         &NumberOfSubgrids[grid1],
@@ -341,7 +357,7 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
       }
     }
   } else {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for if(thread_grid_loop) schedule(dynamic)
     for (grid1 = 0; grid1 < NumberOfGrids; grid1++)
       Grids[grid1]->GridData->ClearBoundaryFluxes();
   }
@@ -361,6 +377,7 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
         || (dtThisLevelSoFar[level] < dtLevelAbove)) {
     if(CheckpointRestart == FALSE) {
 
+    TIMER_START(level_name);
     /* Reset performance counter for load balancer */
 
     for (grid1 = 0; grid1 < NumberOfGrids; grid1++)
@@ -368,6 +385,37 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
  
     SetLevelTimeStep(Grids, NumberOfGrids, level, 
         &dtThisLevelSoFar[level], &dtThisLevel[level], dtLevelAbove);
+
+    /* If StarFormationOncePerRootGridTimeStep, stars are only created
+    once per root grid time step and only on MaximumRefinementLevel
+    grids. The following sets the MakeStars flag for all
+    MaximumRefinementLevel grids when level==0. Post star formation,
+    MakeStars is unset in Grid::StarParticleHandler() in order to
+    prevent further star formation until the next root grid time
+    step. */
+
+    /* Currently (April 2012) this is only implemented for H2REG_STAR,
+    and MakeStars is completely ignored in all other star makers. */
+
+    if ( (STARMAKE_METHOD(H2REG_STAR)) && 
+	 (level==0) && 
+	 (StarFormationOncePerRootGridTimeStep) ) {
+      /* At top level, set Grid::MakeStars to 1 for all highest
+	 refinement level grids. */
+      LevelHierarchyEntry *Temp;
+      Temp = LevelArray[MaximumRefinementLevel];
+      int count=0;
+      while (Temp != NULL) {
+	Temp->GridData->SetMakeStars();
+	Temp = Temp->NextGridThisLevel;
+	count++;
+      }
+      // if(MyProcessorNumber == ROOT_PROCESSOR) 
+      // 	fprintf(stderr,"Set MakeStars=1 for %d MaximumRefinementLevel grids.\n",count);
+
+      TopGridTimeStep = LevelArray[0]->GridData->ReturnTimeStep();
+
+    }
 
     /* Streaming movie output (write after all parent grids are
        updated) */
@@ -419,7 +467,8 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
     /* ------------------------------------------------------- */
     /* Evolve all grids by timestep dtThisLevel. */
 
-#pragma omp parallel for schedule(guided) private(_mpi_time)
+#pragma omp parallel for if(thread_grid_loop) schedule(dynamic) private(_mpi_time)
+
     for (grid1 = 0; grid1 < NumberOfGrids; grid1++) {
 
       START_LOAD_TIMER;
@@ -472,7 +521,8 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
     SetAccelerationBoundary(Grids, NumberOfGrids,SiblingList,level, MetaData,
 			    Exterior, LevelArray[level], LevelCycleCount[level]);
     
-#pragma omp parallel for schedule(guided) private(_mpi_time)
+#pragma omp parallel for if(thread_grid_loop) schedule(dynamic) private(_mpi_time)
+
     for (grid1 = 0; grid1 < NumberOfGrids; grid1++) {
       START_LOAD_TIMER;
 #endif //SAB.
@@ -482,6 +532,9 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
       Grids[grid1]->GridData->CopyBaryonFieldToOldBaryonField();
 
       /* Call hydro solver and save fluxes around subgrids. */
+
+//#pragma omp master
+//      fprintf(stderr,"About to solve hydro on level %"ISYM", in parallel:%"ISYM"\n",level,omp_in_parallel());
 
       Grids[grid1]->GridData->SolveHydroEquations(LevelCycleCount[level],
 	    NumberOfSubgrids[grid1], SubgridFluxesEstimate[grid1], level);
@@ -494,10 +547,28 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
  
       UpdateParticlePositions(Grids[grid1]->GridData);
 
+    /*Trying after solving for radiative transfer */
+#ifdef EMISSIVITY
+    /*                                                                                                           
+        clear the Emissivity of the level below, after the level below                                            
+        updated the current level (it's parent) and before the next
+        timestep at the current level.                                                                            
+    */
+      /*    if (StarMakerEmissivityField > 0) {
+    LevelHierarchyEntry *Temp;
+    Temp = LevelArray[level];
+    while (Temp != NULL) {
+      Temp->GridData->ClearEmissivity();
+      Temp = Temp->NextGridThisLevel;
+      }
+      }*/
+#endif
+
+
       /* Include 'star' particle creation and feedback. */
 
       Grids[grid1]->GridData->StarParticleHandler
-	(Grids[grid1]->NextGridNextLevel, level ,dtLevelAbove);
+	(Grids[grid1]->NextGridNextLevel, level ,dtLevelAbove, TopGridTimeStep);
 
       /* Include shock-finding */
 
@@ -556,11 +627,12 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 
     /* For each grid, delete the GravitatingMassFieldParticles. */
  
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for if(thread_grid_loop) schedule(static)
+
     for (grid1 = 0; grid1 < NumberOfGrids; grid1++)
       Grids[grid1]->GridData->DeleteGravitatingMassFieldParticles();
 
-
+    TIMER_STOP(level_name);
     /* ----------------------------------------- */
     /* Evolve the next level down (recursively). */
  
@@ -693,13 +765,6 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 
 //     } // if WritePotential
  
-
-    /* Rebuild the Grids on the next level down.
-       Don't bother on the last cycle, as we'll rebuild this grid soon. */
- 
-    if (dtThisLevelSoFar[level] < dtLevelAbove)
-      RebuildHierarchy(MetaData, LevelArray, level);
-
     /* Count up number of grids on this level. */
 
     int GridMemory, NumberOfCells, CellsTotal, Particles;
@@ -708,10 +773,18 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
       Grids[grid1]->GridData->CollectGridInformation
         (GridMemory, GridVolume, NumberOfCells, AxialRatio, CellsTotal, Particles);
       LevelZoneCycleCount[level] += NumberOfCells;
+      TIMER_ADD_CELLS(level, NumberOfCells);
       if (MyProcessorNumber == Grids[grid1]->GridData->ReturnProcessorNumber())
 	LevelZoneCycleCountPerProc[level] += NumberOfCells;
     }
+    TIMER_SET_NGRIDS(level, NumberOfGrids);
+
+    /* Rebuild the Grids on the next level down.
+       Don't bother on the last cycle, as we'll rebuild this grid soon. */
  
+    if (dtThisLevelSoFar[level] < dtLevelAbove)
+      RebuildHierarchy(MetaData, LevelArray, level);
+
     cycle++;
     LevelCycleCount[level]++;
  
@@ -729,6 +802,7 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
   lcaperf.attribute ("level",0,LCAPERF_NULL);
 #endif
 
+  
   /* Clean up. */
  
   delete [] NumberOfSubgrids;

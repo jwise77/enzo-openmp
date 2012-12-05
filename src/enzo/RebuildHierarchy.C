@@ -21,7 +21,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
- 
+
+#include "EnzoTiming.h" 
 #include "ErrorExceptions.h"
 #include "performance.h"
 #include "macros_and_parameters.h"
@@ -102,6 +103,7 @@ int RebuildHierarchy(TopGridData *MetaData,
   int dbx = 0;
  
   LCAPERF_START("RebuildHierarchy");
+  TIMER_START("RebuildHierarchy");
 
   if (debug) printf("RebuildHierarchy: level = %"ISYM"\n", level);
   ReportMemoryUsage("Rebuild pos 1");
@@ -323,22 +325,13 @@ int RebuildHierarchy(TopGridData *MetaData,
  
 //    if (debug) ReportMemoryUsage("Memory usage report: Rebuild 3");
 
-      /* Find maximum level that exists right now. */
-
 #ifdef UNUSED 
-      for (i = level; i < MAX_DEPTH_OF_HIERARCHY-1; i++) 
-	if (TempLevelArray[i] == NULL) break;
-
-      int MaximumLevelNow = i;
 #endif
- 
     /* 3) Rebuild all grids on this level and below.  Note: All the grids
           in LevelArray[level+] have been deleted. */
 
-      for (i = level; i < MAX_DEPTH_OF_HIERARCHY-1; i++) {
-	//for (i = level; i < MaximumLevelNow; i++) {
+    for (i = level; i < MAX_DEPTH_OF_HIERARCHY-1; i++) {
  
-
       /* If there are no grids on this level, exit. */
  
       if (LevelArray[i] == NULL)
@@ -382,8 +375,8 @@ int RebuildHierarchy(TopGridData *MetaData,
 
       tt0 = ReturnWallTime();
       TotalFlaggedCells = FlaggedGrids = 0;
-#pragma omp parallel for schedule(guided) private(SubgridList)	\
-  reduction(+:TotalFlaggedCells, FlaggedGrids)
+//#pragma omp parallel for schedule(guided) private(SubgridList)	\
+//  reduction(+:TotalFlaggedCells, FlaggedGrids)
       for (j = 0; j < grids; j++)
 	FindSubgrids(GridHierarchyPointer[j], SubgridList, i,
 		     TotalFlaggedCells, FlaggedGrids);
@@ -458,7 +451,7 @@ int RebuildHierarchy(TopGridData *MetaData,
 	 Overlap counter, deleting the grid which it reaches zero. */
       
       tt0 = ReturnWallTime();
-#pragma omp parallel for schedule(guided)
+//#pragma omp parallel for schedule(guided)
       for (j = 0; j < subgrids; j++) {
 	SubgridHierarchyPointer[j]->ParentGrid->GridData->
 	  DebugCheck("Rebuild parent");
@@ -614,7 +607,7 @@ int RebuildHierarchy(TopGridData *MetaData,
  
       /* 3g) loop over parent, and copy particles to new grids. */
  
-#pragma omp parallel for schedule(guided) private(k, ToGrids)
+//#pragma omp parallel for schedule(guided) private(k, ToGrids)
       for (j = 0; j < grids; j++)
  
 	if (GridHierarchyPointer[j]->NextGridNextLevel != NULL) {
@@ -687,6 +680,7 @@ int RebuildHierarchy(TopGridData *MetaData,
   if (debug) fpcol(RHperf, 16, 16, stdout);
 #endif /* RH_PERF */
   ReportMemoryUsage("Rebuild pos 4");
+  TIMER_STOP("RebuildHierarchy");
   LCAPERF_STOP("RebuildHierarchy");
   return SUCCESS;
  
