@@ -1,4 +1,5 @@
 #include "error.def"
+#include "fortran.def"
 
       subroutine wrapper3d(x, rank, n1, n2, n3, dir, method)
 
@@ -7,18 +8,19 @@
 !     Date:       November, 2003
 
       implicit none
+#include "fortran_types.def"
 
 !     Arguments
 
-      integer :: rank, n1, n2, n3, dir
-      complex :: x(n1,n2,n3)
+      INTG_PREC :: rank, n1, n2, n3, dir
+      CMPLX_PREC :: x(n1,n2,n3)
       external :: method
 
 !     Locals
 
-      complex, allocatable :: y(:,:,:), z(:,:,:)
-      integer :: n(3)
-      integer :: i,j,k
+      CMPLX_PREC, allocatable :: y(:,:,:), z(:,:,:)
+      INTG_PREC :: n(3)
+      INTG_PREC :: i,j,k
 
       if( rank /= 3 ) then
         write(0,*) '3D wrapper rank != 3'
@@ -29,7 +31,11 @@
       n(2) = 1
       n(3) = 1
 
-!$omp parallel do private(j,k) schedule(static)
+!$omp parallel do &
+!$omp  collapse(2) &
+!$omp  private(j, k) &
+!$omp  shared(n2,n3, x, n, dir) &
+!$omp  default(none)
       do k=1,n3
       do j=1,n2
       call fftwrap3d( x(1,j,k), n, dir, method )
@@ -42,7 +48,12 @@
       call rotate3d(x,n1,n2,n3,y)
 
       n(1) = n2
-!$omp parallel do private(i,k) schedule(static)
+
+!$omp parallel do &
+!$omp  collapse(2) &
+!$omp  private(i, k) &
+!$omp  shared(n1,n3, y, n, dir) &
+!$omp  default(none)
       do i=1,n1
       do k=1,n3
       call fftwrap3d( y(1,k,i), n, dir, method )
@@ -57,7 +68,12 @@
       deallocate( y)
 
       n(1) = n3
-!$omp parallel do private(i,j) schedule(static)
+
+!$omp parallel do &
+!$omp  collapse(2) &
+!$omp  private(i, k) &
+!$omp  shared(n1,n2, z, n, dir) &
+!$omp  default(none)
       do j=1,n2
       do i=1,n1
       call fftwrap3d( z(1,i,j), n, dir, method )
@@ -77,10 +93,11 @@
       subroutine fftwrap3d( a, n, dir, method )
 
       implicit none
+#include "fortran_types.def"
 
-      complex :: a(*)
-      integer :: n(3)
-      integer :: dir
+      CMPLX_PREC :: a(*)
+      INTG_PREC :: n(3)
+      INTG_PREC :: dir
       external :: method
 
       call method(a, n(1), dir)

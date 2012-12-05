@@ -1,14 +1,16 @@
+#include "fortran.def"
       subroutine rotate3d(x,n1,n2,n3,y)
 
       implicit none
+#include "fortran_types.def"
 
-      integer n1,n2,n3
-      complex x(n1,n2,n3), y(n2,n3,n1)
+      INTG_PREC n1,n2,n3
+      CMPLX_PREC x(n1,n2,n3), y(n2,n3,n1)
 
-      integer i,j,k
-      integer ii,jj,kk
-      integer ib,jb,kb
-      integer bs
+      INTG_PREC i,j,k
+      INTG_PREC ii,jj,kk
+      INTG_PREC ib,jb,kb
+      INTG_PREC bs
 
       bs = 64
 
@@ -25,7 +27,8 @@
 !     end do
 !     go to 666
 
-!$omp parallel do private(i,j,k,ii,jj,kk) schedule(static)
+!$omp parallel 
+!$omp do collapse(2) private(i,j,k,ii,jj,kk) schedule(static)
       do ii=1,n1,ib
         do kk=1,n3,kb
           do jj=1,n2,jb
@@ -41,7 +44,8 @@
           end do
         end do
       end do
-!$omp end parallel do
+!$omp end do
+!$omp end parallel
 
   666 continue
 

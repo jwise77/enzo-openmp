@@ -20,13 +20,18 @@
 #ifdef USE_MPI
 #include "mpi.h"
 #endif /* USE_MPI */
- 
+
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
  
 #define DEFINE_STORAGE
+#include "EnzoTiming.h"
 #include "ErrorExceptions.h"
 #include "performance.h"
 #include "macros_and_parameters.h"
@@ -287,6 +292,14 @@ Eint32 MAIN_NAME(Eint32 argc, char *argv[])
 
   t_init0 = MPI_Wtime();
 #endif /* USE_MPI */
+
+  // Create enzo timer
+#ifdef _OPENMP
+  omp_set_dynamic(0);
+#endif
+
+//#pragma omp parallel 
+  enzo_timer = new enzo_timing::enzo_timer();
 
 #ifdef USE_LCAPERF
 
