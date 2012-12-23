@@ -331,6 +331,8 @@ OBJS_CONFIG_LIB = \
         Grid_CollectParticleMassFlaggingField.o \
         Grid_CollectStars.o \
 	Grid_CommunicationMoveGrid.o \
+	Grid_CommunicationMoveGrid1.o \
+	Grid_CommunicationMoveGrid2.o \
 	Grid_CommunicationReceiveRegion.o \
 	Grid_CommunicationSendParticles.o \
 	Grid_CommunicationSendStars.o \
@@ -413,6 +415,7 @@ OBJS_CONFIG_LIB = \
 	Grid_FlagCellsToBeRefinedByTotalJeansLength.o \
 	Grid_FlagCellsToBeRefinedByMass.o \
 	Grid_FlagCellsToBeRefinedByMetallicity.o \
+	Grid_FlagCellsToBeRefinedByMetalMass.o \
 	Grid_FlagCellsToBeRefinedByMustRefineParticles.o \
 	Grid_FlagCellsToBeRefinedByMustRefineRegion.o \
 	Grid_FlagCellsToBeRefinedByResistiveLength.o \
@@ -457,6 +460,7 @@ OBJS_CONFIG_LIB = \
 	Grid_InitializeGravitatingMassField.o \
 	Grid_InitializeGravitatingMassFieldParticles.o \
 	Grid_InitializeUniformGrid.o \
+	Grid_inteuler.o \
 	Grid_InterpolateAccelerations.o \
 	Grid_InterpolateBoundaryFromParent.o \
 	Grid_InterpolateFieldValues.o \
@@ -624,6 +628,7 @@ OBJS_CONFIG_LIB = \
 	intpos.o \
 	intprim.o \
         intvar.o \
+        intvarC.o \
         Isdigit.o \
         KHInitialize.o \
         LevelHierarchy_AddLevel.o \
@@ -660,6 +665,7 @@ OBJS_CONFIG_LIB = \
 	OneZoneFreefallTestInitialize.o \
         OutputAsParticleData.o \
 	OutputCoolingTimeOnly.o \
+	OutputDustTemperatureOnly.o \
         OutputFromEvolveLevel.o\
         OutputLevelInformation.o \
 	OutputPotentialFieldOnly.o \
@@ -716,6 +722,7 @@ OBJS_CONFIG_LIB = \
         RadiationFieldCalculateRates.o \
         RadiationFieldLymanWernerTable.o \
         RadiationFieldUpdate.o \
+	rate_cool_routines.o \
         ReadAllData.o \
         ReadAttr.o \
         ReadEvolveRefineFile.o \
@@ -902,8 +909,13 @@ POBJS_CONFIG_LIB = \
 	FindSuperSourceByPosition.o \
 	FLDCorrectForImpulses.o \
 	Grid_AddH2Dissociation.o \
+	Grid_AddH2DissociationFromSources.o \
+	Grid_AddH2DissociationFromTree.o \
+	Grid_AddOpticallyThinXrays.o \
 	Grid_AddRadiationImpulse.o \
 	Grid_AddRadiationPressureAcceleration.o \
+	Grid_AddXraysFromSources.o \
+	Grid_AddXraysFromTree.o \
 	Grid_AllocateInterpolatedRadiation.o \
 	Grid_CommunicationSendPhotonPackages.o \
         Grid_ComputePhotonTimestep.o \
@@ -936,6 +948,7 @@ POBJS_CONFIG_LIB = \
         Grid_SetSubgridMarkerFromParent.o \
         Grid_SetSubgridMarkerFromSibling.o \
         Grid_SetSubgridMarkerFromSubgrid.o \
+	Grid_SetSubgridMarkerIsolatedBoundaries.o \
         Grid_SubgridMarkerPostParallel.o \
         Grid_Shine.o \
         Grid_TransportPhotonPackages.o \

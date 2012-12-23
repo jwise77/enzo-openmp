@@ -100,7 +100,8 @@ int grid::MHDRK2_1stStep(fluxes *SubgridFluxes[],
 
   if (DualEnergyFormalism > 0) NEQ_MHD = 10;
 
-  float *Prim[NEQ_MHD+NSpecies+NColor];
+  //float *Prim[NEQ_MHD+NSpecies+NColor];
+  float *Prim[MAX_NUMBER_OF_BARYON_FIELDS];
   this->ReturnHydroRKPointers(Prim, false); 
 
   /* RK2 first step */

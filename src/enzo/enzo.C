@@ -20,7 +20,11 @@
 #ifdef USE_MPI
 #include "mpi.h"
 #endif /* USE_MPI */
- 
+
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -122,6 +126,7 @@ int InterpretCommandLine(int argc, char *argv[], char *myname,
 			 int &WritePotentialOnly,
 			 int &SmoothedDarkMatterOnly,
 			 int &WriteCoolingTimeOnly,
+			 int &WriteDustTemperatureOnly,
 			 int MyProcessorNumber);
 void AddLevel(LevelHierarchyEntry *Array[], HierarchyEntry *Grid, int level);
 int SetDefaultGlobalValues(TopGridData &MetaData);
@@ -209,6 +214,15 @@ int OutputCoolingTimeOnly(char *ParameterFile,
 			  , ImplicitProblemABC *ImplicitSolver
 #endif
 			  );
+int OutputDustTemperatureOnly(char *ParameterFile,
+			      LevelHierarchyEntry *LevelArray[], 
+			      HierarchyEntry *TopGrid,
+			      TopGridData &MetaData,
+			      ExternalBoundary &Exterior
+#ifdef TRANSFER
+			      , ImplicitProblemABC *ImplicitSolver
+#endif
+			  );
 
 
 void CommunicationAbort(int);
@@ -268,7 +282,7 @@ Eint32 MAIN_NAME(Eint32 argc, char *argv[])
       sleep(5);
   }
 #endif
-  
+  //  sleep(5);
 
   int int_argc;
   int_argc = argc;
@@ -280,6 +294,11 @@ Eint32 MAIN_NAME(Eint32 argc, char *argv[])
 #endif /* USE_MPI */
 
   // Create enzo timer
+#ifdef _OPENMP
+  omp_set_dynamic(0);
+#endif
+
+//#pragma omp parallel 
   enzo_timer = new enzo_timing::enzo_timer();
 
 #ifdef USE_LCAPERF
@@ -351,6 +370,7 @@ Eint32 MAIN_NAME(Eint32 argc, char *argv[])
     WritePotentialOnly       = FALSE,
     SmoothedDarkMatterOnly   = FALSE,
     WriteCoolingTimeOnly     = FALSE,
+    WriteDustTemperatureOnly = FALSE,
     project                  = FALSE,
     ProjectionDimension      = INT_UNDEFINED,
     ProjectionSmooth         = FALSE,
@@ -446,7 +466,8 @@ Eint32 MAIN_NAME(Eint32 argc, char *argv[])
 			   RegionStartCoordinates, RegionEndCoordinates,
 			   RegionLevel, HaloFinderOnly,
 			   WritePotentialOnly, SmoothedDarkMatterOnly,
-			   WriteCoolingTimeOnly, MyProcessorNumber) == FAIL) {
+			   WriteCoolingTimeOnly, WriteDustTemperatureOnly,
+			   MyProcessorNumber) == FAIL) {
     if(int_argc==1){
       my_exit(EXIT_SUCCESS);
     } else {
@@ -616,6 +637,16 @@ Eint32 MAIN_NAME(Eint32 argc, char *argv[])
 			  MetaData, Exterior
 #ifdef TRANSFER
 			  , ImplicitSolver
+#endif
+			  );
+    my_exit(EXIT_SUCCESS);
+  }
+
+  if (WriteDustTemperatureOnly) {
+    OutputDustTemperatureOnly(ParameterFile, LevelArray, &TopGrid,
+			      MetaData, Exterior
+#ifdef TRANSFER
+			      , ImplicitSolver
 #endif
 			  );
     my_exit(EXIT_SUCCESS);

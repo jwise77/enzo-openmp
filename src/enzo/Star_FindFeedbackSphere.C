@@ -83,6 +83,26 @@ int Star::FindFeedbackSphere(LevelHierarchyEntry *LevelArray[], int level,
     return SUCCESS;
   }
 
+  /* Don't include feedback for SUPERNOVAE outside of the refine region. */
+
+  if (FeedbackFlag == SUPERNOVA) {
+    bool inside = true;
+    for (dim = 0; dim < MAX_DIMENSION; dim++)
+      inside &= (this->pos[dim] - Radius >= RefineRegionLeftEdge[dim] &&
+		 this->pos[dim] + Radius <= RefineRegionRightEdge[dim]);
+    if (!inside) {
+      SkipMassRemoval = TRUE;
+      if (debug)
+	printf("StarParticle[%"ISYM"]: M=%"GSYM", "
+	       "PISN bubble outside of refine region.  Skipping.\n"
+	       "pos = %"GOUTSYM" %"GOUTSYM" %"GOUTSYM", radius = %g\n",
+	       Identifier, Mass, this->pos[0], this->pos[1], this->pos[2],
+	       Radius);
+      this->FeedbackFlag = DEATH;
+    }
+    return SUCCESS;
+  }
+
   /***********************************************************************
 
     For star formation, we need to find a sphere with enough mass to
@@ -300,7 +320,7 @@ int Star::FindFeedbackSphere(LevelHierarchyEntry *LevelArray[], int level,
      checking in this case, doesn't hurt...), check if the sphere is
      contained within grids on this level.  */
 
-  if (SphereContained == TRUE)
+  if (SphereContained == TRUE && FeedbackFlag != FORMATION)
     SphereContained = this->SphereContained(LevelArray, level, Radius);
 
   /* If contained and this is for star formation, we record how much
@@ -338,7 +358,7 @@ int Star::FindFeedbackSphere(LevelHierarchyEntry *LevelArray[], int level,
     // then turn it on.
     //#ifdef UNUSED
     if (StarType == PopII && this->Mass < StarClusterMinimumMass &&
-	Time-this->BirthTime > tdyn_code) {
+	Time-this->BirthTime > 0.1*tdyn_code) {
       if (debug) 
 	printf("star::FindFeedbackSphere: Old protostar: lived %g yr. "
 	       "Particle mass = %g. Star particle %"PISYM".  Turning on.\n",

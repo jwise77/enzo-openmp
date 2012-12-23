@@ -441,6 +441,7 @@ EXTERN FLOAT EvolveRefineRegionRightEdge[MAX_REFINE_REGIONS][3]; // right corner
 
 EXTERN int MyProcessorNumber;
 EXTERN int NumberOfProcessors;
+EXTERN int NumberOfCores;
 EXTERN float CommunicationTime;
 
 /* Parameter to indicate if top grid should do parallel IO
@@ -504,6 +505,7 @@ EXTERN float MinimumOverDensityForRefinement[MAX_FLAGGING_METHODS];
 EXTERN float MinimumMassForRefinement[MAX_FLAGGING_METHODS];
 EXTERN float MinimumMassForRefinementLevelExponent[MAX_FLAGGING_METHODS];
 EXTERN float DepositPositionsParticleSmoothRadius;
+EXTERN float MetallicityForRefinement;
 
 /* For CellFlaggingMethod = 3,
    The minimum pressure jump required to be a shock.

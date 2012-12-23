@@ -477,7 +477,6 @@ int grid::SolveHydroEquations(int CycleNumber, int NumberOfSubgrids,
 
   }  // end: if (NumberOfBaryonFields > 0)
 
-
   this->DebugCheck("SolveHydroEquations (after)");
 
   TIMER_STOP("SolveHydroEquations");
