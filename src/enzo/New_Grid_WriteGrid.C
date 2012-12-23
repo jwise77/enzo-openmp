@@ -316,6 +316,12 @@ int grid::Group_WriteGrid(FILE *fptr, char *base_name, int grid_id, HDF5_hid_t f
         }
     }
 
+    /* Write observed cost */
+
+    if (this->ObservedCost > 0)
+      writeScalarAttribute(group_id, HDF5_REAL, "ObservedCost", 
+			   &this->ObservedCost);
+
     if (VelAnyl==1){
 
       float *curl_x, *curl_y, *curl_z, *div;
@@ -408,7 +414,7 @@ int grid::Group_WriteGrid(FILE *fptr, char *base_name, int grid_id, HDF5_hid_t f
     /* If requested, compute and output the dust temperature field 
        as well since its such a pain to compute after the fact. */
  
-    if (OutputDustTemperature) {
+    if (OutputDustTemperature != FALSE) {
  
       /* Get temperature field if we do not already have it. */
 

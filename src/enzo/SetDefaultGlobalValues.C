@@ -202,6 +202,7 @@ int SetDefaultGlobalValues(TopGridData &MetaData)
   MetallicityRefinementMinLevel = -1;
   MetallicityRefinementMinMetallicity = 1.0e-5;
   MetallicityRefinementMinDensity = FLOAT_UNDEFINED;
+  MetallicityForRefinement  = 1.0;
   FluxCorrection            = TRUE;
   InterpolationMethod       = SecondOrderA;      // ?
   ConservativeInterpolation = TRUE;              // true for ppm
@@ -354,7 +355,7 @@ int SetDefaultGlobalValues(TopGridData &MetaData)
   FindShocksOnlyOnOutput      = 0;                 // Find at every cycle and 
                                                    // during output by default.
   RadiationFieldType          = 0;
-  RadiationFieldRedshift      = 0.0;
+  RadiationFieldRedshift      = FLOAT_UNDEFINED;
   TabulatedLWBackground       = 0;
   RadiationFieldLevelRecompute = 0;
   RadiationData.RadiationShield = 0;
@@ -439,6 +440,7 @@ int SetDefaultGlobalValues(TopGridData &MetaData)
   StarMakerMassEfficiency          = 1;
   StarMakerMinimumMass             = 1.0e9;        // in solar masses
   StarMakerMinimumDynamicalTime    = 1.0e6;        // in years
+  StarMakerUsePhysicalDensityThreshold = FALSE;
   StarMassEjectionFraction         = 0.25;
   StarMetalYield                   = 0.02;
   StarEnergyToThermalFeedback      = 1.0e-5;

@@ -134,11 +134,16 @@ c
       if (ndim .eq. 3) then
 
          if (addaspoints .eq. 1) then
+!$omp parallel do schedule(static)
+!$omp+ private(xpos, ypos, zpos, i1, j1, k1)
+!$omp+ private(dx, dy, dz)
+!$omp+ reduction(+:field)
             do n=1, npositions
 
 c
 c           Compute the position of the central cell
 c
+#ifdef UNUSED
             xpos = min(max((posx(n) - leftedge(1))*fact, half), edge1)
             ypos = min(max((posy(n) - leftedge(2))*fact, half), edge2)
             zpos = min(max((posz(n) - leftedge(3))*fact, half), edge3)
@@ -154,6 +159,7 @@ c
             dx = REAL(i1,RKIND) + 0.5_RKIND - xpos
             dy = REAL(j1,RKIND) + 0.5_RKIND - ypos
             dz = REAL(k1,RKIND) + 0.5_RKIND - zpos
+#endif /* UNUSED */
 c
 c           Interpolate from field into sumfield
 
@@ -174,8 +180,13 @@ c
                field(i1  ,j1  ,k1  ) = field(i1,j1,k1) +
      &              mass(n)
             enddo
+!$omp end parallel do
          else 
 c     
+!$omp parallel do schedule(static)
+!$omp+ private(xpos, ypos, zpos, i1, j1, k1)
+!$omp+ private(dx, dy, dz)
+!$omp+ reduction(+:field)
             do n=1, npositions
 c     
 c     Compute the position of the central cell
@@ -216,6 +227,7 @@ c
      &              mass(n)*(1._RKIND-dx)*(1._RKIND-dy)*(1._RKIND-dz)
 c     
             enddo
+!$omp end parallel do
       
          endif                  ! end of  addaspoints if 
 !     do kkk=1,dim3

@@ -86,6 +86,9 @@ include $(MAKE_CONFIG_OVERRIDE)
 # required by this makefile.  E.g. $(CXX), $(CXXFLAGS), etc.
 #-----------------------------------------------------------------------
 
+-include $(ENZO_DIR)/Make.mach.$(CONFIG_MACHINE)
+-include $(HOME)/.enzo/Make.mach.$(CONFIG_MACHINE)
+
 include Make.config.assemble
 
 #-----------------------------------------------------------------------
@@ -94,8 +97,8 @@ include Make.config.assemble
 
 MACH_SHARED_EXT=so
 
--include $(ENZO_DIR)/Make.mach.$(CONFIG_MACHINE)
--include $(HOME)/.enzo/Make.mach.$(CONFIG_MACHINE)
+#-include $(ENZO_DIR)/Make.mach.$(CONFIG_MACHINE)
+#-include $(HOME)/.enzo/Make.mach.$(CONFIG_MACHINE)
 
 #=======================================================================
 # OBJECT FILES
@@ -405,7 +408,7 @@ help:
 #-----------------------------------------------------------------------
 
 clean:
-	-@rm -f *.so *.o uuid/*.o *.mod *.f *.f90 DEPEND.bak *~ $(OUTPUT) *.exe \
+	-@rm -f *.so *.o uuid/*.o *.mod *.f *.f90 DEPEND.bak *~ $(OUTPUT) $(EXE).exe \
           auto_show*.C hydro_rk/*.o *.oo hydro_rk/*.oo \
           uuid/*.oo DEPEND TAGS \
           libconfig/*.o \
