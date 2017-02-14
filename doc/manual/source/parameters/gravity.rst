@@ -59,6 +59,26 @@ General
     completely baryon dominated. It is used to remove the discreteness
     effects of the few remaining dark matter particles. Not used if set
     to a value less than 0. Default: -1
+``ParticleSubgridDepositMode`` (external)
+    This parameter controls how particles stored in subgrid are deposited
+    into the current grid.  Options are:
+      0 (CIC_DEPOSIT) - This is a second-order, cloud-in-cell deposition
+         method in which the cloud size is equal to the cell size in
+         the target grid (particles are in source grid, deposited into
+         target grid).  This method preserves the correct center-of-mass
+         for a single particle but smears out boundaries and can result
+         in small artifacts for smooth particle distributions (e.g.
+         nested cosmological simulations with low perturbations).
+      1 (CIC_DEPOSIT_SMALL) - This is also a CIC method, but the cloud
+         size is taken to be the cell size in the source grid, so for
+         subgrids, the cloud is smaller than the grid size.  This
+         is an attempt to compromise between the other two methods.
+      2 (NGP_DEPOSIT) - This uses a first order, nearest-grid-point
+        method to deposit particle mass.  It does not preserve center-
+        of mass position and so for single particle results in noisy
+        accelerations.  However, it does correctly treat nested
+        cosmology simulations with low initial perturbations.
+     Default: 1
 ``BaryonSelfGravityApproximation`` (external)
     This flag indicates if baryon density is derived in a strange,
     expensive but self-consistent way (0 - off), or by a completely
@@ -119,4 +139,33 @@ added to the acceleration field for the baryons and particles.
 ``UniformGravityConstant`` (external)
     Magnitude (and sign) of the uniform gravitational acceleration.
     Default: 1
-
+``DiskGravity`` (external)
+    This flag (1 - on, 0 - off) indicates if there is to be a
+    disk-like gravity field (Berkert 1995; Mori & Burkert 2000).  Default: 0
+``DiskGravityPosition`` (external)
+    This indicates the position of the center of the disk gravity.
+    Default: 0 0 0
+``DiskGravityAngularMomentum`` (external)
+    Specifies the unit vector of the disk angular momentum.
+    Default: 0 0 1
+``DiskGravityStellarDiskMass`` (external)
+    Total mass of stellar disk (in solar masses)
+    Default: 1e11
+``DiskGravityDiskScaleHeightR`` (external)
+    Disk scale length in radius (in Mpc)
+    Default: 4.0e-3
+``DiskGravityDiskScaleHeightz`` (external)
+    Disk scale height in z (in Mpc)
+    Default: 2.5e-4
+``DiskGravityStellarBulgeMass`` (external)
+    Disk stellar bulge mass (in solar masses)
+    Default: 1.0e10
+``DiskGravityStellarBulgeR`` (external)
+    Disk stellar bulge scalue radius (in Mpc)
+    Default: 1.0e-4
+``DiskGravityDarkMatterR`` (external)
+    Dark matter halo scale radius (in Mpc)
+    Default: 2.3e-2
+``DiskGravityDarkMatterDensity`` (external)
+    Dark matter effective density (in cgs)
+    Default: 3.81323e-25

@@ -36,7 +36,7 @@ modified so I list them here as well. Some parameters are true/false or on/off
 boolean flags.  Eventually, these may be parsed, but in the meantime, we use the
 common convention of 0 meaning false or off and 1 for true or on.
 
-This list includes parameters for the Enzo 2.2 release.
+This list includes parameters for the Enzo 2.3 release.
 
 .. toctree::
    :maxdepth: 2
@@ -53,6 +53,7 @@ This list includes parameters for the Enzo 2.2 release.
    cosmology.rst
    bhform.rst   
    shocks.rst   
+   cosmicrays.rst   
    conduction.rst
    analysis.rst 
    other.rst    

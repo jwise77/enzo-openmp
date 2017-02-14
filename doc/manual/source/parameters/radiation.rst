@@ -11,7 +11,9 @@ Background Radiation Parameters
     is to be used. Except for ``RadiationFieldType`` = 9, which should
     be used with ``MultiSpecies`` = 2, UV backgrounds can currently
     only be used with ``MultiSpecies`` = 1 (i.e. no molecular H
-    support). The following values are used. Default: 0
+    support). The following values are used.  For field type 15, see
+    Table 3 in `Haardt & Madau (2012)
+    <http://adsabs.harvard.edu/abs/2012ApJ...746..125H />`_. Default: 0
 
    ::
   
@@ -25,6 +27,7 @@ Background Radiation Parameters
      10 - Internally computed radiation field using the algorithm of Cen & Ostriker
      11 - Same as previous, but with very, very simple optical shielding fudge
      12 - Haardt & Madau spectrum with q_alpha = 1.57
+     15 - Haardt & Madau 2012.
 
 ``RadiationFieldLevelRecompute`` (external)
     This integer parameter is used only if the previous parameter is
@@ -44,11 +47,16 @@ Background Radiation Parameters
 ``RadiationShield`` (external)
     This parameter specifies whether the user wants to employ
     approximate radiative-shielding. This parameter will be
-    automatically turned on when RadiationFieldType is set to 11. See
-    ``calc_photo_rates.src``. Default: 0
+    automatically turned on when RadiationFieldType is set to 11. When
+    set to 1, it calculates shielding for H/He. See
+    ``calc_photo_rates.src`` for more details.  When set to 2, it
+    shields only H2 with the Sobolev-like approximation from
+    Wolcott-Green et al. (2011).  Default: 0
 ``RadiationFieldRedshift`` (external)
     This parameter specifies the redshift at which the radiation field
-    is calculated.  Default: 0
+    is calculated.  If a UV radiation background is used in a
+    non-cosmological simulation, this needs to be defined. Negative
+    redshifts are permitted. Default: (undefined)
 ``RadiationRedshiftOn`` (external) 
     The redshift at which the UV 
     background turns on. Default: 7.0.
@@ -119,6 +127,16 @@ Radiative Transfer (Ray Tracing) Parameters
     Once photons are past this radius, they can no longer split. In
     units of kpc. If this value is negative (by default), photons can
     always split. Default: ``FLOAT_UNDEFINED``.
+``RadiativeTransferHubbleTimeFraction`` (external)
+    Photon packages are deleted when its associated photo-ionization
+    timescale, considering the limit when all photons are absorbed in
+    one cell, drops below a fraction (this parameter) of a Hubble
+    time.  This parameter can be safely set to 0.01 when ray merging
+    is used.  Default: 0.1
+``RadiativeTransferFluxBackgroundLimit`` (external)
+    When the flux of a photon package drops below a fraction (this
+    parameter) of the background radiation field, the ray is deleted.
+    Only used with ray merging.  Default: 0.01
 ``RadiativeTransferPhotonEscapeRadius`` (external)
     The number of photons that pass this distance from its source are
     summed into the global variable ``EscapedPhotonCount[]``. This variable
@@ -143,6 +161,11 @@ Radiative Transfer (Ray Tracing) Parameters
     Limits the radiative transfer timestep to a minimum value that is
     determined by the cell width at the finest level divided by this
     velocity. Units are in km/s. Default: 100.
+``RadiativeTransferTimestepVelocityLevel`` (external)
+    Limit the ray tracing timestep by a sound crossing time (see
+    ``RadiativeTransferTimestepVelocityLimit``) across a
+    cell on the level specified with this parameter.  Not used if
+    equal to INT_UNDEFINED (-99999).  Default: INT_UNDEFINED
 ``RadiativeTransferHIIRestrictedTimestep`` (external)
     Adaptive ray tracing timesteps will be restricted by a maximum change of 10% in neutral fraction if this parameter is set to 1.  If set to 2, then the incident flux can change by a maximum of 0.5 between cells.  See Wise & Abel (2011) in Sections 3.4.1 and 3.4.4 for more details.  Default: 0
 ``RadiativeTransferAdaptiveTimestep`` (external)
@@ -375,13 +398,22 @@ Radiative Transfer (FLD) Split Solver Parameters
 
    ::
  
-    -1 - monochromatic spectrum at frequency h nu_{HI}= 13.6 eV
-    0  - power law spectrum, (nu / nu_{HI})^(-1.5) 
     1  - T=1e5 blackbody spectrum
+    0  - power law spectrum, ( nu / nu_{HI})^(-1.5)` 
+    -1 - monochromatic spectrum at frequency h nu_{HI}= 13.6 eV
+    -2 - monochromatic spectrum at frequency h nu_{HeI}= 24.6 eV
+    -3 - monochromatic spectrum at frequency h nu_{HeII}= 54.4 eV
 
 ``RadHydroChemistry`` (external)
-    Use of hydrogen chemistry in ionization model, set to 1 to turn on
-    the hydrogen chemistry, 0 otherwise. Default: 1.
+    Use of primordial chemistry in computing opacities and
+    photo-heating/photo-ionization.  Default: 1. 
+
+   ::
+
+    0 no chemistry
+    1 hydrogen chemistry
+    3 hydrogen and helium chemistry
+
 ``RadHydroHFraction`` (external)
     Fraction of baryonic matter comprised of hydrogen. Default: 1.0.
 ``RadHydroModel`` (external)
@@ -389,11 +421,12 @@ Radiative Transfer (FLD) Split Solver Parameters
     Default: 1.
 
    ::
+
     1  - chemistry-dependent model, with case-B hydrogen II recombination
          coefficient.
     4  - chemistry-dependent model, with case-A hydrogen II recombination
          coefficient, but assumes an isothermal gas energy.
-   10  - no chemistry, instead uses a model of local thermodynamic
+    10 - no chemistry, instead uses a model of local thermodynamic
        	 equilibrium to couple radiation to gas energy.
 
 
@@ -406,24 +439,43 @@ Radiative Transfer (FLD) Split Solver Parameters
 ``RadHydroInitDt`` (external)
     initial time step to use in the FLD solver. Default: 1e20 (uses
     hydro time step).
+``RadHydroMaxSubcycles`` (external)
+    desired number of FLD time steps per hydrodynamics time step (must
+    be greater than or equal to 1). This is only recommended if the
+    FLD solver is performing chemistry and heating internally, since
+    it will only synchronize with the ionization state at each
+    hydrodynamic time step.  When using Enzo's chemistry and cooling
+    solvers this parameter should be set to 1 to avoid overly
+    decoupling radiation and chemistry.  Default: 1.0.
+``RadHydroMaxChemSubcycles`` (external)
+    desired number of chemistry time steps per FLD time step.  This
+    only applies if the FLD solver is performing chemistry and heating
+    internally, instead of using Enzo's built-in routines for this
+    task. Default: 1.0.
 ``RadHydroDtNorm`` (external)
     type of p-norm to use in estimating time-accuracy for predicting
     next time step. Default: 2.0.
 
    ::
+
     0  - use the max-norm.
     >0 - use the specified p-norm.
     <0 - illegal.
 
+``RadHydroDtGrowth`` (external)
+    Maximum growth factor in the FLD time step between successive
+    iterations. Default: 1.1 (10% growth).
 ``RadHydroDtRadFac`` (external)
     Desired time accuracy tolerance for the radiation field. Default:
     1e20 (unused).
 ``RadHydroDtGasFac`` (external)
-    Desired time accuracy tolerance for the gas energy field. Default:
+    Desired time accuracy tolerance for the gas energy field.  Only
+    used if the FLD solver is performing heating internally.  Default:
     1e20 (unused).
 ``RadHydroDtChemFac`` (external)
-    Desired time accuracy tolerance for the hydrogen I number density.
-    Default: 1e20 (unused).
+    Desired time accuracy tolerance for the hydrogen I number
+    density.  Only used if the FLD solver is performing chemistry
+    internally.  Default: 1e20 (unused).
 ``RadiationScaling`` (external)
     Scaling factor for the radiation field, in case standard
     non-dimensionalization fails. Default: 1.0.
@@ -433,6 +485,11 @@ Radiative Transfer (FLD) Split Solver Parameters
 ``ChemistryScaling`` (external)
     Scaling factor for the hydrogen I number density, in case standard
     non-dimensionalization fails. Default: 1.0.
+``AutomaticScaling`` (external)
+    Enables an heuristic approach in the FLD solver to update the
+    above scaling factors internally.  Works well for reioniztaion
+    calculations, but is not recommended for problems in which the
+    optimal unit scaling factor is known a-priori. Default: 1.0.
 ``RadiationBoundaryX0Faces`` (external)
     Boundary condition types to use on the x0 faces of the radiation
     field. Default: [0 0].
@@ -452,6 +509,15 @@ Radiative Transfer (FLD) Split Solver Parameters
 ``RadHydroTheta`` (external)
     Time-discretization parameter to use, 0 gives explicit Euler, 1
     gives implicit Euler, 0.5 gives trapezoidal. Default: 1.0.
+``RadHydroKrylovMethod`` (external)
+    Desired outer linear solver algorithm to use.  Default: 1.
+
+    ::
+
+     0 - Preconditioned Conjugate Gradient (PCG)
+     1 - Stabilized Bi-Conjugate Gradient (BiCGStab)
+     2 - Generalized Minimum Residual (GMRES)
+
 ``RadHydroSolTolerance`` (external)
     Desired accuracy for solution to satisfy linear residual (measured
     in the 2-norm). Default: 1e-8.
@@ -463,10 +529,10 @@ Radiative Transfer (FLD) Split Solver Parameters
 
     ::
 
-     Jacobi.
-     Weighted Jacobi.
-     Red/Black Gauss-Seidel (symmetric).
-     Red/Black Gauss-Seidel (non-symmetric).
+     0 - Jacobi
+     1 - Weighted Jacobi
+     2 - Red/Black Gauss-Seidel (symmetric)
+     3 - Red/Black Gauss-Seidel (non-symmetric)
 
 ``RadHydroMGPreRelax`` (external)
     Number of pre-relaxation sweeps used by the multigrid solver.

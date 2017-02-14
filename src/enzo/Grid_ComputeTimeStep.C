@@ -50,6 +50,15 @@ extern "C" void PFORTRAN_NAME(calc_dt)(
                   float *d, float *p, float *u, float *v, float *w,
 			     float *dt, float *dtviscous);
  
+extern "C" void
+FORTRAN_NAME(mhd_dt)(float *bxc, float *byc, float *bzc,
+                     float *vx, float *vy, float *vz,
+                     float *d, float *p, float *gamma, float *dt,
+                     FLOAT *dx, FLOAT *dy, FLOAT *dz,
+                     int *idim, int *jdim, int *kdim, int * rank,
+                     int *i1, int *i2,
+                     int *j1, int *j2,
+                     int *k1, int *k2, float* eng);
  
 float grid::ComputeTimeStep()
 {
@@ -71,8 +80,10 @@ float grid::ComputeTimeStep()
   float dtAcceleration = huge_number;
   float dtMHD          = huge_number;
   float dtConduction   = huge_number;
+  float dtCR           = huge_number;
   float dtGasDrag      = huge_number;
-  int dim, i, result;
+  float dtCooling      = huge_number;
+  int dim, i, j, k, index, result;
  
   /* Compute the field size. */
  
@@ -93,25 +104,43 @@ float grid::ComputeTimeStep()
   if (NumberOfBaryonFields > 0 && (HydroMethod != HD_RK) && (HydroMethod != MHD_RK)) {
  
     /* Find fields: density, total energy, velocity1-3. */
- 
-    int DensNum, GENum, Vel1Num, Vel2Num, Vel3Num, TENum;
-    if (this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num,
-					 Vel3Num, TENum) == FAIL) {
-      fprintf(stderr, "ComputeTimeStep: IdentifyPhysicalQuantities error.\n");
-      exit(FAIL);
-    }
+
+    int DensNum, GENum, TENum, Vel1Num, Vel2Num, Vel3Num, 
+        B1Num, B2Num, B3Num, PhiNum;
+    this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num, Vel3Num, 
+                                     TENum, B1Num, B2Num, B3Num, PhiNum); 
 
     /* For one-zone free-fall test, just compute free-fall time. */
     if (ProblemType == 63) {
-      dt = TestProblemData.OneZoneFreefallTimestepFraction * 
-	POW(((3 * pi) / (32 * GravitationalConstant * BaryonField[DensNum][0])), 0.5);
+      float *force_factor = new float[size];
+      if (this->ComputeOneZoneCollapseFactor(force_factor) == FAIL) {
+	ENZO_FAIL("Error in ComputeOneZoneCollapseFactor.\n");
+      }
+
+      dt = huge_number;
+      for (k = GridStartIndex[2]; k <= GridEndIndex[2]; k++) { // nothing
+	for (j = GridStartIndex[1]; j <= GridEndIndex[1]; j++) { // metallicity
+	  for (i = GridStartIndex[0]; i <= GridEndIndex[0]; i++) { // energy
+
+	    index = i + j*GridDimension[0] + k*GridDimension[0]*GridDimension[1];
+
+	    dt = min(dt, POW(((3 * pi) / 
+			      (32 * GravitationalConstant * 
+			       BaryonField[DensNum][index] *
+			       (1 - force_factor[index]))), 0.5));
+	  }
+	}
+      }
+
+      delete [] force_factor;
+      dt *= TestProblemData.OneZoneFreefallTimestepFraction;
       return dt;
     }
  
     /* Compute the pressure. */
  
     float *pressure_field = new float[size];
-    this->ComputePressure(Time, pressure_field);
+    this->ComputePressure(Time, pressure_field,0,1); // Note: Force use of CRs to get sound speed correct
  
 #ifdef UNUSED
     int Zero[3] = {0,0,0}, TempInt[3] = {0,0,0};
@@ -121,20 +150,47 @@ float grid::ComputeTimeStep()
  
     /* Call fortran routine to do calculation. */
  
-    PFORTRAN_NAME(calc_dt)(&GridRank, GridDimension, GridDimension+1,
-                               GridDimension+2,
-//                        Zero, TempInt, Zero+1, TempInt+1, Zero+2, TempInt+2,
-                          GridStartIndex, GridEndIndex,
-                               GridStartIndex+1, GridEndIndex+1,
-                               GridStartIndex+2, GridEndIndex+2,
-			       &HydroMethod, &ZEUSQuadraticArtificialViscosity,
-                          CellWidth[0], CellWidth[1], CellWidth[2],
-                               GridVelocity, GridVelocity+1, GridVelocity+2,
-                               &Gamma, &PressureFree, &afloat,
-                          BaryonField[DensNum], pressure_field,
-                               BaryonField[Vel1Num], BaryonField[Vel2Num],
-                               BaryonField[Vel3Num], &dtBaryons, &dtViscous);
+    if( HydroMethod != MHD_Li)
+      PFORTRAN_NAME(calc_dt)(&GridRank, GridDimension, GridDimension+1,
+			     GridDimension+2,
+			     GridStartIndex, GridEndIndex,
+			     GridStartIndex+1, GridEndIndex+1,
+			     GridStartIndex+2, GridEndIndex+2,
+			     &HydroMethod, &ZEUSQuadraticArtificialViscosity,
+			     CellWidth[0], CellWidth[1], CellWidth[2],
+			     GridVelocity, GridVelocity+1, GridVelocity+2,
+			     &Gamma, &PressureFree, &afloat,
+			     BaryonField[DensNum], pressure_field,
+			     BaryonField[Vel1Num], BaryonField[Vel2Num],
+			     BaryonField[Vel3Num], &dtBaryons, &dtViscous);
  
+
+    if(HydroMethod == MHD_Li){
+      /* 1.5) Calculate minimum dt due to MHD: Maximum Fast MagnetoSonic Shock Speed */
+      
+      //Cosmos nees this, for some reason.
+      if(GridRank < 3 ){
+	if( CellWidth[2] == NULL ) CellWidth[2] = new FLOAT;
+	CellWidth[2][0] = 1.0;
+	if( GridRank < 2 ){
+	  if( CellWidth[1] == NULL ) CellWidth[1] = new FLOAT;
+	  CellWidth[1][0] = 1.0;
+	}
+      }
+      int Rank_Hack = 3; //MHD needs a 3d timestep always.
+      FORTRAN_NAME(mhd_dt)(BaryonField[B1Num], BaryonField[B2Num], BaryonField[B3Num],
+			   BaryonField[Vel1Num], BaryonField[Vel2Num], BaryonField[Vel3Num],
+			   BaryonField[DensNum], pressure_field, &Gamma, &dtMHD, 
+			   CellWidth[0], CellWidth[1], CellWidth[2],
+			   GridDimension, GridDimension + 1, GridDimension +2, &Rank_Hack,
+			   GridStartIndex, GridEndIndex,
+			   GridStartIndex+1, GridEndIndex+1,
+			   GridStartIndex+2, GridEndIndex+2, BaryonField[TENum]);
+      
+      dtMHD *= CourantSafetyNumber;
+      dtMHD *= afloat;  
+    }//if HydroMethod== MHD_Li
+
     /* Clean up */
  
     delete [] pressure_field;
@@ -163,9 +219,9 @@ float grid::ComputeTimeStep()
     float rho, p, vx, vy, vz, v2, eint, etot, h, cs, dpdrho, dpde,
       v_signal_x, v_signal_y, v_signal_z;
     int n = 0;
-    for (int k = 0; k < GridDimension[2]; k++) {
-      for (int j = 0; j < GridDimension[1]; j++) {
-	for (int i = 0; i < GridDimension[0]; i++, n++) {
+    for (k = 0; k < GridDimension[2]; k++) {
+      for (j = 0; j < GridDimension[1]; j++) {
+	for (i = 0; i < GridDimension[0]; i++, n++) {
 	  rho = BaryonField[DensNum][n];
 	  vx  = BaryonField[Vel1Num][n];
 	  vy  = BaryonField[Vel2Num][n];
@@ -212,10 +268,8 @@ float grid::ComputeTimeStep()
     int DensNum, GENum, TENum, Vel1Num, Vel2Num, Vel3Num, 
       B1Num, B2Num, B3Num, PhiNum;
     if (this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num, 
-					 Vel3Num, TENum, B1Num, B2Num, B3Num, PhiNum) == FAIL) {
-      fprintf(stderr, "Error in IdentifyPhysicalQuantities.\n");
-      return FAIL;
-    }
+					 Vel3Num, TENum, B1Num, B2Num, B3Num, PhiNum) == FAIL)
+      ENZO_FAIL("Error in IdentifyPhysicalQuantities.");
 
     FLOAT dxinv = 1.0 / CellWidth[0][0]/a;
     FLOAT dyinv = (GridRank > 1) ? 1.0 / CellWidth[1][0]/a : 0.0;
@@ -226,9 +280,9 @@ float grid::ComputeTimeStep()
       v_signal_x, v_signal_y, v_signal_z, cf, cf2, temp1, Bx, By, Bz, B2, ca2;
     int n = 0;
     float rho_dt, B_dt, v_dt;
-    for (int k = 0; k < GridDimension[2]; k++) {
-      for (int j = 0; j < GridDimension[1]; j++) {
-	for (int i = 0; i < GridDimension[0]; i++, n++) {
+    for (k = 0; k < GridDimension[2]; k++) {
+      for (j = 0; j < GridDimension[1]; j++) {
+	for (i = 0; i < GridDimension[0]; i++, n++) {
 	  rho = BaryonField[DensNum][n];
 	  vx  = BaryonField[Vel1Num][n];
 	  vy  = BaryonField[Vel2Num][n];
@@ -346,21 +400,50 @@ float grid::ComputeTimeStep()
   /* 5) Calculate minimum dt due to thermal conduction. */
 
   if(IsotropicConduction || AnisotropicConduction){
-    if (this->ComputeConductionTimeStep(dtConduction) == FAIL) {
-      fprintf(stderr, "Error in ComputeConductionTimeStep.\n");
-      return FAIL;
-    }
-    dtConduction *= ConductionCourantSafetyNumber;  // for stability
+    if (this->ComputeConductionTimeStep(dtConduction) == FAIL) 
+      ENZO_FAIL("Error in ComputeConductionTimeStep.\n");
+
     dtConduction *= float(NumberOfGhostZones);     // for subcycling 
   }
+  
+  /* 6) Calculate minimum dt due to CR diffusion */
 
-  /* 6) GasDrag time step */
+  if(CRModel && CRDiffusion ){
+    if( this->ComputeCRDiffusionTimeStep(dtCR) == FAIL) {
+      fprintf(stderr, "Error in ComputeCRDiffusionTimeStep.\n");
+      return FAIL;
+    }
+    dtCR *= CRCourantSafetyNumber;
+    dtCR *= float(NumberOfGhostZones);  // for subcycling
+  }
+
+  /* 7) GasDrag time step */
   if (UseGasDrag && GasDragCoefficient != 0.) {
     dtGasDrag = 0.5/GasDragCoefficient;
   }
 
 
-  /* 7) calculate minimum timestep */
+  /* Cooling time */
+  if (UseCoolingTimestep == TRUE) {
+    float *cooling_time = new float[size];
+    if (this->ComputeCoolingTime(cooling_time, TRUE) == FAIL) {
+      ENZO_FAIL("Error in grid->ComputeCoolingTime.\n");
+    }
+
+    for (k = GridStartIndex[2]; k < GridEndIndex[2]; k++) {
+      for (j = GridStartIndex[1]; j < GridEndIndex[1]; j++) {
+	index = GRIDINDEX_NOGHOST(GridStartIndex[0], j, k);
+	for (i = GridStartIndex[0]; i < GridEndIndex[0]; i++, index++) {
+	  dtCooling = min(dtCooling, cooling_time[index]);
+	}
+      }
+    }
+    dtCooling *= CoolingTimestepSafetyFactor;
+ 
+    delete [] cooling_time;
+  }
+
+  /* 8) calculate minimum timestep */
  
   dt = min(dtBaryons, dtParticles);
   dt = min(dt, dtMHD);
@@ -368,42 +451,21 @@ float grid::ComputeTimeStep()
   dt = min(dt, dtAcceleration);
   dt = min(dt, dtExpansion);
   dt = min(dt, dtConduction);
+  dt = min(dt, dtCR);
   dt = min(dt, dtGasDrag);
+  dt = min(dt, dtCooling);
 
 #ifdef TRANSFER
-
-  /* 8) If star formation, set a minimum timestep */
 
   float TemperatureUnits, DensityUnits, LengthUnits, 
     VelocityUnits, TimeUnits, aUnits = 1;
 
   if (GetUnits(&DensityUnits, &LengthUnits, &TemperatureUnits,
 	       &TimeUnits, &VelocityUnits, Time) == FAIL) {
-    ENZO_FAIL("Error in GetUnits.\n");
+    ENZO_FAIL("Error in GetUnits.");
   }
 
-  float dtStar = huge_number;
-#ifdef UNUSED
-  float mindtNOstars;  // Myr
-  const int NumberOfStepsInLifetime = 5;
-
-  if (STARFEED_METHOD(POP3_STAR))
-    mindtNOstars = 3;  // Myr
-  if (STARFEED_METHOD(STAR_CLUSTER))
-    mindtNOstars = 10;  // Myr
-
-  if (STARFEED_METHOD(POP3_STAR) || STARFEED_METHOD(STAR_CLUSTER))
-    if (G_TotalNumberOfStars > 0 && minStarLifetime < 1e6)
-      dtStar = minStarLifetime/NumberOfStepsInLifetime;
-    else
-      dtStar = 3.1557e13*mindtNOstars/TimeUnits;
-
-  dt = min(dt, dtStar);
-#endif /* UNUSED */
-
-
-
-  /* 9) If using radiation pressure, calculate minimum dt */
+  /* 8) If using radiation pressure, calculate minimum dt */
 
   float dtRadPressure = huge_number;
   float absVel, absAccel;
@@ -413,7 +475,7 @@ float grid::ComputeTimeStep()
     int RPresNum1, RPresNum2, RPresNum3;
     if (IdentifyRadiationPressureFields(RPresNum1, RPresNum2, RPresNum3) 
 	== FAIL) {
-      ENZO_FAIL("Error in IdentifyRadiationPressureFields.\n");
+      ENZO_FAIL("Error in IdentifyRadiationPressureFields.");
     }
 
     for (i = 0; i < size; i++)
@@ -430,7 +492,7 @@ float grid::ComputeTimeStep()
 
   } /* ENDIF RadiationPressure */
 
-  /* 10) Safety Velocity to limit timesteps */
+  /* 9) Safety Velocity to limit timesteps */
 
   float dtSafetyVelocity = huge_number;
   if (TimestepSafetyVelocity > 0)
@@ -440,7 +502,7 @@ float grid::ComputeTimeStep()
   dt = min(dt, dtSafetyVelocity);
 
 
-  /* 9) FLD Radiative Transfer timestep limitation */
+  /* 10) FLD Radiative Transfer timestep limitation */
   if (RadiativeTransferFLD)
     dt = min(dt, MaxRadiationDt);
   
@@ -449,31 +511,25 @@ float grid::ComputeTimeStep()
   /* Debugging info. */
   
   if (debug1) {
-    printf("ComputeTimeStep = %"FSYM" (", dt);
-    if (HydroMethod != MHD_RK && NumberOfBaryonFields > 0)
-      printf("Bar = %"FSYM" ", dtBaryons);
-    if (HydroMethod == MHD_RK)
-      printf("dtMHD = %e ", dtMHD);
+    printf("ComputeTimeStep = %"ESYM" (", dt);
+    if (HydroMethod != MHD_RK && HydroMethod != MHD_Li && NumberOfBaryonFields > 0)
+      printf("Bar = %"ESYM" ", dtBaryons);
+    if (HydroMethod == MHD_RK || HydroMethod == MHD_Li)
+      printf("dtMHD = %"ESYM" ", dtMHD);
     if (HydroMethod == Zeus_Hydro)
-      printf("Vis = %"FSYM" ", dtViscous);
+      printf("Vis = %"ESYM" ", dtViscous);
     if (ComovingCoordinates)
-      printf("Exp = %"FSYM" ", dtExpansion);
+      printf("Exp = %"ESYM" ", dtExpansion);
     if (dtAcceleration != huge_number)
-      printf("Acc = %"FSYM" ", dtAcceleration);
+      printf("Acc = %"ESYM" ", dtAcceleration);
     if (NumberOfParticles)
-      printf("Part = %"FSYM" ", dtParticles);
+      printf("Part = %"ESYM" ", dtParticles);
+    if (UseCoolingTimestep)
+      printf("Cool = %"ESYM" ", dtCooling);
     if (IsotropicConduction || AnisotropicConduction)
       printf("Cond = %"ESYM" ",(dtConduction));
     if (UseGasDrag)
       printf("Drag = %"ESYM" ",(dtGasDrag));
-#ifdef TRANSFER
-    if (dtStar < huge_number)
-      printf("Stars = %"FSYM" ", dtStar);
-    if (RadiationPressure)
-      printf("RP = %"FSYM" ", dtRadPressure);
-    if (TimestepSafetyVelocity > 0)
-      printf("Saf = %"FSYM" ", dtSafetyVelocity);
-#endif /* TRANSFER */      
     printf(")\n");
   }
  

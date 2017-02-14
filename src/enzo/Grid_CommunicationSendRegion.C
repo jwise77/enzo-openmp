@@ -81,6 +81,31 @@ int grid::CommunicationSendRegion(grid *ToGrid, int ToProcessor,int SendField,
   if (SendField == ALL_FIELDS, NewOrOld == NEW_ONLY)
     TransferSize += 2*MAX_COMPUTE_TIMERS;
  
+  /* MHD Dimension stuff */
+
+  int MHDRegionDim[3][3], MHDRegionSize[3]={1,1,1};
+  int MHDeRegionDim[3][3], MHDeRegionSize[3]={1,1,1};
+
+  if( UseMHDCT ){
+    //Account for face centered field.  Note that I don't want to communicate the OldCenteredField
+    TransferSize += ((SendField == ALL_FIELDS)? 3*RegionSize : 0 )*
+                     ((NewOrOld == NEW_AND_OLD)? 2 : 1);
+   
+    for(field =0; field<3;field++){
+      for(dim=0;dim<3;dim++){
+	MHDRegionDim[field][dim] = RegionDim[dim]+MHDAdd[field][dim];
+	MHDRegionSize[field] *= MHDRegionDim[field][dim];
+	MHDeRegionDim[field][dim]= RegionDim[dim]+( (field==dim)?0:1);
+	MHDeRegionSize[field] *=MHDeRegionDim[field][dim];
+      }
+      
+      TransferSize += ((SendField == ALL_FIELDS)? MHDRegionSize[field]: 0 )*
+	((NewOrOld == NEW_AND_OLD)? 2 : 1);
+      
+    }//field
+
+  }//if(UseMHDCT)
+
   // Allocate buffer
  
   float *buffer = NULL;
@@ -127,6 +152,41 @@ int grid::CommunicationSendRegion(grid *ToGrid, int ToProcessor,int SendField,
 			       RegionStart, RegionStart+1, RegionStart+2);
 	  index += RegionSize;
       }
+
+    if(UseMHDCT && SendField == ALL_FIELDS){
+
+
+      if (NewOrOld == NEW_AND_OLD || NewOrOld == NEW_ONLY ){
+	
+	for(field=0;field<3;field++){
+	  FORTRAN_NAME(copy3d)(MagneticField[field], &buffer[index],
+			       &MagneticDims[field][0], 
+			       &MagneticDims[field][1], 
+			       &MagneticDims[field][2], 
+			       &MHDRegionDim[field][0],
+			       &MHDRegionDim[field][1],
+			       &MHDRegionDim[field][2],
+			       Zero, Zero+1, Zero+2,
+			       RegionStart, RegionStart+1, RegionStart+2);
+	  index += MHDRegionSize[field];
+	}
+      }
+
+      if (NewOrOld == NEW_AND_OLD || NewOrOld == OLD_ONLY){
+	  for(field=0;field<3;field++){
+	    FORTRAN_NAME(copy3d)(OldMagneticField[field], &buffer[index],
+				 &MagneticDims[field][0],
+				 &MagneticDims[field][1],
+				 &MagneticDims[field][2],
+				 &MHDRegionDim[field][0],
+				 &MHDRegionDim[field][1],
+				 &MHDRegionDim[field][2],
+				 Zero, Zero+1, Zero+2,
+				 RegionStart, RegionStart+1, RegionStart+2);
+	    index += MHDRegionSize[field];
+	  }
+      }//new and old or old only
+    } // if(UseMHDCT && SendField == ALL_FIELDS)
  
     if (SendField == GRAVITATING_MASS_FIELD_PARTICLES)
       FORTRAN_NAME(copy3d)(GravitatingMassFieldParticles, buffer,
@@ -285,6 +345,46 @@ int grid::CommunicationSendRegion(grid *ToGrid, int ToProcessor,int SendField,
 	  index += RegionSize;
 	}
  
+    if( UseMHDCT && SendField == ALL_FIELDS ){
+
+      /* send Bf */
+      if (NewOrOld == NEW_AND_OLD || NewOrOld == NEW_ONLY){
+	for(field=0;field<3;field++){
+
+	  delete ToGrid->MagneticField[field];
+	  ToGrid->MagneticField[field] = new float[MHDRegionSize[field] ];
+	  FORTRAN_NAME(copy3d)(&buffer[index], MagneticField[field],
+			       &MHDRegionDim[field][0],
+			       &MHDRegionDim[field][1],
+			       &MHDRegionDim[field][2],
+			       &MHDRegionDim[field][0],
+			       &MHDRegionDim[field][1],
+			       &MHDRegionDim[field][2],
+			       Zero, Zero+1, Zero+2,
+			       Zero, Zero+1, Zero+2);
+	  index += MHDRegionSize[field];
+	}
+      }
+
+      if (NewOrOld == NEW_AND_OLD || NewOrOld == OLD_ONLY)
+	for(field=0;field<3;field++){
+	  if( OldMagneticField[field] != NULL )
+	    fprintf(stderr,"Warning: CommSendRegion: OldMagneticField != NULL" );
+	  delete ToGrid->OldMagneticField[field];
+	  ToGrid->OldMagneticField[field] = new float[MHDRegionSize[field]];
+	  FORTRAN_NAME(copy3d)(&buffer[index], OldMagneticField[field],
+			       &MHDRegionDim[field][0],
+			       &MHDRegionDim[field][1],
+			       &MHDRegionDim[field][2],
+			       &MHDRegionDim[field][0],
+			       &MHDRegionDim[field][1],
+			       &MHDRegionDim[field][2],
+			       Zero, Zero+1, Zero+2,
+			       Zero, Zero+1, Zero+2);
+	  index += MHDRegionSize[field];
+	}
+    } // if( UseMHDCT && SendField == ALL_FIELDS )
+
     if (SendField == GRAVITATING_MASS_FIELD_PARTICLES) {
       delete[] ToGrid->GravitatingMassFieldParticles;
       ToGrid->GravitatingMassFieldParticles = new float[RegionSize];

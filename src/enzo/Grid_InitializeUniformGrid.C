@@ -27,14 +27,15 @@ int grid::InitializeUniformGrid(float UniformDensity,
 				float UniformTotalEnergy,
 				float UniformInternalEnergy,
 				float UniformVelocity[], 
-				float UniformBField[])
+				float UniformBField[],
+				float UniformCR)
 {
   /* declarations */
  
-  int dim, i, size, field, GCM;
+  int dim, i, j, k, index, size, field, GCM;
 
   int DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum, HMNum, H2INum, H2IINum,
-    DINum, DIINum, HDINum, MetalNum, MetalIaNum, B1Num, B2Num, B3Num, PhiNum;
+    DINum, DIINum, HDINum, MetalNum, MetalIaNum, B1Num, B2Num, B3Num, PhiNum, CRNum;
 
   int CINum, CIINum, OINum, OIINum, SiINum, SiIINum, SiIIINum, CHINum, CH2INum, 
     CH3IINum, C2INum, COINum, HCOIINum, OHINum, H2OINum, O2INum;
@@ -55,18 +56,25 @@ int grid::InitializeUniformGrid(float UniformDensity,
     FieldType[NumberOfBaryonFields++] = Velocity2;
   if (GridRank > 2 || HydroMethod > 2)
     FieldType[NumberOfBaryonFields++] = Velocity3;
-  if (HydroMethod == MHD_RK) {
+  if ( UseMHD ) {
     FieldType[B1Num = NumberOfBaryonFields++] = Bfield1;
     FieldType[B2Num = NumberOfBaryonFields++] = Bfield2;
     FieldType[B3Num = NumberOfBaryonFields++] = Bfield3;
-    FieldType[PhiNum = NumberOfBaryonFields++] = PhiField;
+    if( HydroMethod == MHD_RK ){
+        FieldType[PhiNum = NumberOfBaryonFields++] = PhiField;
+    }
     if (UseDivergenceCleaning) {
       FieldType[NumberOfBaryonFields++] = Phi_pField;
     }
   }
+
+  if ( CRModel ) {
+    CRNum = NumberOfBaryonFields;
+    FieldType[NumberOfBaryonFields++] = CRDensity;
+  }
+
   if (WritePotential)
     FieldType[NumberOfBaryonFields++] = GravPotential;
-
 
 
   int colorfields = NumberOfBaryonFields;
@@ -179,15 +187,14 @@ int grid::InitializeUniformGrid(float UniformDensity,
  
   /* allocate fields */
  
-  for (field = 0; field < NumberOfBaryonFields; field++)
-    if (BaryonField[field] == NULL)
-      BaryonField[field] = new float[size];
- 
+  this->AllocateGrids();
+
   /* set density, total energy */
  
   for (i = 0; i < size; i++) {
     BaryonField[0][i] = UniformDensity;
     BaryonField[1][i] = UniformTotalEnergy;
+    if ( CRModel ) BaryonField[CRNum][i] = UniformCR;
   }
  
   /* set velocities */
@@ -202,10 +209,10 @@ int grid::InitializeUniformGrid(float UniformDensity,
     for (i = 0; i < size; i++)
       BaryonField[2][i] = UniformInternalEnergy;
 
-  if (HydroMethod == MHD_RK) {
+  if (UseMHD) {
     for (dim = 0; dim < 3; dim++) 
       for (i = 0; i < size; i++)
-	BaryonField[B1Num+dim][i] = UniformBField[dim];
+        BaryonField[B1Num+dim][i] = UniformBField[dim];
   }
 
    /* set density of color fields to user-specified values (if user doesn't specify, 
@@ -346,8 +353,20 @@ int grid::InitializeUniformGrid(float UniformDensity,
       }
 
     } // if(TestProblemData.GloverChemistryModel)
+    
 
   } // for (i = 0; i < size; i++)
+
+
+  if(UseMHDCT == TRUE){
+    for(field=0;field<3;field++)
+      for(k=0; k<MagneticDims[field][2]; k++)
+	for(j=0; j<MagneticDims[field][1]; j++)
+	  for(i=0; i<MagneticDims[field][0];i++){
+	    index = i+MagneticDims[field][0]*(j+MagneticDims[field][1]*k);
+	    MagneticField[field][index] = UniformBField[field];
+	  }
+  }  // if(UseMHDCT == TRUE)
 
   return SUCCESS;
 }

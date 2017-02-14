@@ -34,15 +34,17 @@ int GetUnits(float *DensityUnits, float *LengthUnits,
 	     float *TemperatureUnits, float *TimeUnits,
 	     float *VelocityUnits, FLOAT Time);
  
-int grid::ComputePressure(FLOAT time, float *pressure)
+int grid::ComputePressure(FLOAT time, float *pressure,
+                          float MinimumSupportEnergyCoefficient,
+                          int IncludeCRs)
 {
  
   /* declarations */
  
-  float density, gas_energy, total_energy;
+  float density, gas_energy, total_energy, min_pressure;
   float velocity1, velocity2 = 0, velocity3 = 0;
   int i, size = 1;
- 
+
   /* Error Check */
  
   if (time < OldTime || time > Time) {
@@ -65,15 +67,22 @@ int grid::ComputePressure(FLOAT time, float *pressure)
     size *= GridDimension[dim];
  
   /* Find fields: density, total energy, velocity1-3. */
- 
-  int DensNum, GENum, Vel1Num, Vel2Num, Vel3Num, TENum, B1Num, B2Num, B3Num;
-  if (this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num,
-				       Vel3Num, TENum, B1Num, B2Num, B3Num) == FAIL) {
-    ENZO_FAIL("Error in IdentifyPhysicalQuantities.\n");
+  int DensNum, GENum, Vel1Num, Vel2Num, Vel3Num, TENum, B1Num, B2Num, B3Num, CRNum;
+  if(CRModel) {
+    if (this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num,
+              Vel3Num, TENum, CRNum) == FAIL) {
+      ENZO_FAIL("Error in IdentifyPhysicalQuantities.\n");
+    }
+  } else {
+    if (this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num,
+              Vel3Num, TENum, B1Num, B2Num, B3Num) == FAIL) {
+      ENZO_FAIL("Error in IdentifyPhysicalQuantities.\n");
+    }
   }
  
   /* If using Zeus_Hydro, then TotalEnergy is really GasEnergy so don't
      subtract the kinetic energy term. */
+
  
   float OneHalf = 0.5;
   if (HydroMethod == Zeus_Hydro)
@@ -88,55 +97,70 @@ int grid::ComputePressure(FLOAT time, float *pressure)
  
     for (i = 0; i < size; i++) {
  
-      total_energy  = BaryonField[TENum][i];
-      density       = BaryonField[DensNum][i];
-      velocity1     = BaryonField[Vel1Num][i];
-      if (GridRank > 1)
-	velocity2   = BaryonField[Vel2Num][i];
-      if (GridRank > 2)
-	velocity3   = BaryonField[Vel3Num][i];
+      if( EquationOfState == 1 ){
+	pressure[i] = IsothermalSoundSpeed *IsothermalSoundSpeed * BaryonField[DensNum][i];
+      }else{
+	if( EquationOfState == 0 )
+	  total_energy  = BaryonField[TENum][i];
+	density       = BaryonField[DensNum][i];
+	velocity1     = BaryonField[Vel1Num][i];
+	if (MaxVelocityIndex > 1)
+	  velocity2   = BaryonField[Vel2Num][i];
+	if (MaxVelocityIndex > 2)
+	  velocity3   = BaryonField[Vel3Num][i];
+	
+	if (EOSType > 0){
 
-      float B2 = 0.;
-      if (HydroMethod == MHD_RK) {
-	B2 = pow(BaryonField[B1Num][i],2) + 
-	     pow(BaryonField[B2Num][i],2) +
-	     pow(BaryonField[B3Num][i],2);
-      }
-      float kineticE = OneHalf*(velocity1*velocity1 +
-				velocity2*velocity2 +
-				velocity3*velocity3);
+	  /* If using polytropic EOS, calculate pressure directly from density */
 
-      if (EOSType > 0){
+	  float e, h, cs, dpdrho, dpde;
+	  EOS(pressure[i], density, e, h, cs, dpdrho, dpde, EOSType, 0);
+	  
+	  /* also reset energy */
+	  float kineticE = OneHalf * (
+	    velocity1*velocity1 + velocity2*velocity2 + velocity3*velocity3
+	  );
+	  BaryonField[TENum][i] = e + kineticE;
 
-	/* If using polytropic EOS, calculate pressure directly from density */
+	  if (HydroMethod == MHD_RK || UseMHDCT) {
+	    float B2 = pow(BaryonField[B1Num][i],2)
+	      + pow(BaryonField[B2Num][i],2)
+	      + pow(BaryonField[B3Num][i],2);
+	    BaryonField[TENum][i] += OneHalf * B2 / density;
+	  }
+	
+	} else { 
+	  if (DualEnergyFormalism == 0){ 
+	    /* gas energy = E - 1/2 v^2. */
+	    gas_energy    = total_energy - OneHalf*(velocity1*velocity1 +
+						    velocity2*velocity2 +
+						    velocity3*velocity3);
 
-	float e, h, cs, dpdrho, dpde;
-	EOS(pressure[i], density, e, h, cs, dpdrho, dpde, EOSType, 0);
+	    if (UseMHD) {
+	      float B2 = pow(BaryonField[B1Num][i],2)
+	        + pow(BaryonField[B2Num][i],2)
+	        + pow(BaryonField[B3Num][i],2);
+	      gas_energy -= OneHalf * B2 / density;
+	    }
+	  } else {
+	    gas_energy = BaryonField[GENum][i];
+	  }
 
-	/* also reset energy */
-	BaryonField[TENum][i] = e + kineticE + OneHalf*B2/density;
+	  pressure[i] = (Gamma - 1.0)*density*gas_energy;
 
-      } else { 
-	if (DualEnergyFormalism == 0){ 
-	  /* gas energy = E - 1/2 v^2. */
-	  gas_energy    = total_energy - OneHalf*(velocity1*velocity1 +
-						  velocity2*velocity2 +
-						  velocity3*velocity3);
-	} else {
-	  gas_energy = BaryonField[GENum][i];
-	}
+	  if (pressure[i] < tiny_number)
+	    pressure[i] = tiny_number;
 
- 	if (HydroMethod == MHD_RK) {
-	  float B2 = pow(BaryonField[B1Num][i],2) + pow(BaryonField[B2Num][i],2) +
-	    pow(BaryonField[B3Num][i],2);
-	  gas_energy -= OneHalf*B2/density;
-	}
+      min_pressure =
+        MinimumSupportEnergyCoefficient * (Gamma - 1.0) * density * density;
 
-	pressure[i] = (Gamma - 1.0)*density*gas_energy;
- 
-	if (pressure[i] < tiny_number)
-	  pressure[i] = tiny_number;
-      }
+         if (pressure[i] < min_pressure)
+          pressure[i] = min_pressure;
+
+        }
+
+      }//EquationOfState == 0
+
     } // end of loop
  
   else
@@ -145,53 +169,78 @@ int grid::ComputePressure(FLOAT time, float *pressure)
  
     for (i = 0; i < size; i++) {
  
-      total_energy  = coef   *   BaryonField[TENum][i] +
-	              coefold*OldBaryonField[TENum][i];
-      density       = coef   *   BaryonField[DensNum][i] +
-                      coefold*OldBaryonField[DensNum][i];
-      velocity1     = coef   *   BaryonField[Vel1Num][i] +
-                      coefold*OldBaryonField[Vel1Num][i];
- 
-      if (GridRank > 1)
-	velocity2   = coef   *   BaryonField[Vel2Num][i] +
-	              coefold*OldBaryonField[Vel2Num][i];
-      if (GridRank > 2)
-	velocity3   = coef   *   BaryonField[Vel3Num][i] +
-	              coefold*OldBaryonField[Vel3Num][i];
- 
-      float B2 = 0.;
-      if (HydroMethod == MHD_RK) {
-	B2 = pow(BaryonField[B1Num][i],2) + 
-	     pow(BaryonField[B2Num][i],2) +
-	     pow(BaryonField[B3Num][i],2);
-      }
-      float kineticE = OneHalf*(velocity1*velocity1 +
-				velocity2*velocity2 +
-				velocity3*velocity3);
-      if (EOSType > 0) {
-	
-	/* If using polytropic EOS, calculate pressure directly from density */
-	float e, h, cs, dpdrho, dpde;
-	EOS(pressure[i], density, e, h, cs, dpdrho, dpde, EOSType, 0);
+      if( EquationOfState == 1 ){
+	pressure[i] = coef   *   BaryonField[DensNum][i] +
+	  coefold*OldBaryonField[DensNum][i];
+	pressure[i] *= IsothermalSoundSpeed*IsothermalSoundSpeed;
 
-	/* also reset energy */
-	BaryonField[TENum][i] = e + kineticE + OneHalf*B2/density;
+      }else{
 
-      } else {
-      /* gas energy = E - 1/2 v^2. */
-	if (DualEnergyFormalism == 0) 
-	  {
-	    gas_energy    = total_energy - kineticE;
-	    gas_energy -= OneHalf*B2/density;
-	  } else 
-	  gas_energy =  coef   *   BaryonField[GENum][i] +
-	                coefold*OldBaryonField[GENum][i];
+	total_energy  = coef   *   BaryonField[TENum][i] +
+	                coefold*OldBaryonField[TENum][i];
+	density       = coef   *   BaryonField[DensNum][i] +
+                        coefold*OldBaryonField[DensNum][i];
+	velocity1     = coef   *   BaryonField[Vel1Num][i] +
+                        coefold*OldBaryonField[Vel1Num][i];
+	if (MaxVelocityIndex > 1)
+	  velocity2   = coef   *   BaryonField[Vel2Num][i] +
+	                coefold*OldBaryonField[Vel2Num][i];
+	if (MaxVelocityIndex > 2)
+	  velocity3   = coef   *   BaryonField[Vel3Num][i] +
+	                coefold*OldBaryonField[Vel3Num][i];
+ 
+	if (EOSType > 0) {
 	
-	pressure[i] = (Gamma - 1.0)*density*gas_energy;
+	  /* If using polytropic EOS, calculate pressure directly from density */
+	  float e, h, cs, dpdrho, dpde;
+	  EOS(pressure[i], density, e, h, cs, dpdrho, dpde, EOSType, 0);
+
+	  /* also reset energy */
+	  float kineticE = OneHalf * (
+	    velocity1*velocity1 + velocity2*velocity2 + velocity3*velocity3
+	  );
+	  BaryonField[TENum][i] = e + kineticE;
+
+	  if (HydroMethod == MHD_RK || UseMHDCT) {
+	    float B2 = pow(BaryonField[B1Num][i],2) 
+	      + pow(BaryonField[B2Num][i],2) + pow(BaryonField[B3Num][i],2);
+	    BaryonField[TENum][i] += OneHalf * B2 / density;
+	  }
+	  
+	} else {
+	  /* gas energy = E - 1/2 v^2. */
+	  if (DualEnergyFormalism == 0) {
+	    float kineticE = OneHalf * (
+	      velocity1*velocity1 + velocity2*velocity2 + velocity3*velocity3
+	    );
+	    gas_energy = total_energy - kineticE;
+
+	    if (HydroMethod == MHD_RK || UseMHDCT) {
+	      float B2 = pow(BaryonField[B1Num][i],2) 
+	        + pow(BaryonField[B2Num][i],2) + pow(BaryonField[B3Num][i],2);
+	      gas_energy -= OneHalf * B2 / density;
+	    }
+	  } else {
+	    gas_energy =  coef * BaryonField[GENum][i]
+	      + coefold*OldBaryonField[GENum][i];
+	  }
+
 	
-	if (pressure[i] < tiny_number)
-	  pressure[i] = tiny_number;
-      }
+	  pressure[i] = (Gamma - 1.0)*density*gas_energy;
+	
+	  if (pressure[i] < tiny_number)
+	    pressure[i] = tiny_number;
+
+      min_pressure =
+        MinimumSupportEnergyCoefficient * (Gamma - 1.0) * density * density;
+
+      if (pressure[i] < min_pressure)
+        pressure[i] = min_pressure;
+
+
+       }
+      } //EquationOfState == 0
+
     } /* end of loop over cells */
  
   /* Correct for Gamma from H2. */
@@ -205,7 +254,7 @@ int grid::ComputePressure(FLOAT time, float *pressure)
     /* Find Multi-species fields. */
  
     int DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum, HMNum, H2INum,
-        H2IINum, DINum, DIINum, HDINum;
+      H2IINum, DINum, DIINum, HDINum;
     if (IdentifySpeciesFields(DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum,
 		      HMNum, H2INum, H2IINum, DINum, DIINum, HDINum) == FAIL) {
       ENZO_FAIL("Error in grid->IdentifySpeciesFields.\n");
@@ -240,7 +289,7 @@ int grid::ComputePressure(FLOAT time, float *pressure)
  
       GammaH2Inverse = 0.5*5.0;
       if (nH2/number_density > 1e-3) {
-    x = 6100.0/temp;
+	x = 6100.0/temp;
 	if (x < 10.0)
 	  GammaH2Inverse = 0.5*(5 + 2.0 * x*x * exp(x)/POW(exp(x)-1.0,2));
       }
@@ -267,6 +316,14 @@ int grid::ComputePressure(FLOAT time, float *pressure)
       pressure[i] *= (Gamma1 - 1.0)/(Gamma - 1.0);
     }
 
+   /* If cosmic rays present, add pressure contribution */
+   if( CRModel && IncludeCRs){
+     float crDensity;
+     for (i=0; i<size; i++) {
+       crDensity = BaryonField[CRNum][i];
+       pressure[i] += max((CRgamma-1.0)*crDensity,0.0);
+     } // end for
+   } // end CRModel if
 
   return SUCCESS;
 }

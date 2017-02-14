@@ -56,8 +56,13 @@ grid::~grid()
     delete [] ParticleAcceleration[i];
     delete [] AccelerationField[i];
     delete [] RandomForcingField[i];
+    if (PhaseFctMultEven[i] != NULL) delete[] PhaseFctMultEven[i];
+    if (PhaseFctMultOdd[i] != NULL) delete[] PhaseFctMultOdd[i];
   }
  
+  if (PhaseFctInitEven != NULL) delete[] PhaseFctInitEven;
+  if (PhaseFctInitOdd != NULL) delete[] PhaseFctInitOdd;
+
   delete ParticleAcceleration[MAX_DIMENSION];
  
   for (i = 0; i < MAX_NUMBER_OF_BARYON_FIELDS; i++) {
@@ -114,5 +119,34 @@ grid::~grid()
     WriteListOfInts(stdout, GridRank, GridDimension);
   }
 */
+
+  //MHD stuff 
  
+  if( UseMHDCT ){
+    for(i=0;i<3;i++){
+
+      if(MagneticField[i] != NULL ){
+	delete MagneticField[i];
+	MagneticField[i] = NULL;
+      }
+      if(OldMagneticField[i] != NULL ){
+	delete OldMagneticField[i];
+	OldMagneticField[i] = NULL;
+      }
+
+
+      if(ElectricField[i] != NULL){
+	delete ElectricField[i];
+	ElectricField[i] = NULL;
+      }
+
+      if(AvgElectricField[i] != NULL){
+	delete AvgElectricField[i];
+	AvgElectricField[i] = NULL;
+      }
+
+    }
+
+  }
+
 }

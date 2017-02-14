@@ -39,7 +39,7 @@ int grid::Shine(RadiationSourceEntry *RadiationSource)
   RadiationSourceEntry *RS = RadiationSource;
   FLOAT min_beam_zvec, dot_prod, vec[3];
   int BasePackages, NumberOfNewPhotonPackages, PackagesPerThread;
-  int i, j, dim;
+  int i, j, dim, bin;
   int count=0;
   int min_level = RadiativeTransferInitialHEALPixLevel;
   int NumberOfThreads = NumberOfCores / NumberOfProcessors;
@@ -99,7 +99,7 @@ int grid::Shine(RadiationSourceEntry *RadiationSource)
   if (RS->Type == Episodic) {
     const float sigma_inv = 4.0;
     float t = PhotonTime - RS->CreationTime + dtPhoton;
-    float frac = 2.0 * fabs(t - nint(t/RS->RampTime) * RS->RampTime) /
+    float frac = 2.0 * fabs(t - round(t/RS->RampTime) * RS->RampTime) /
       RS->RampTime;
     RampPercent = exp((frac-1)*sigma_inv);
   } // ENDIF episodic
@@ -250,11 +250,9 @@ int grid::Shine(RadiationSourceEntry *RadiationSource)
 		  NewPack->Photons, NewPack )
 	}
 
-	if (NewPack->Type < 4)
-	  NewPack->CrossSection = 
-	    FindCrossSection(NewPack->Type, NewPack->Energy);
-	else
-	  NewPack->CrossSection = tiny_number;
+	if (NewPack->Type != 3)  // not Lyman-Werner
+	  for (bin = 0; bin < MAX_CROSS_SECTIONS; bin++)
+	    NewPack->CrossSection[bin] = FindCrossSection(bin, NewPack->Energy);
 
 	/* Set the photon origin to the source radius (0 = point src) */
 
@@ -272,9 +270,13 @@ int grid::Shine(RadiationSourceEntry *RadiationSource)
 	/* Consider the first super source with a leaf size greater
 	   than the cell size. */
 
+#define NO_PRE_MERGE
+#ifdef PRE_MERGE
 	while (NewPack->CurrentSource != NULL &&
+	       RadiativeTransferPhotonMergeRadius * 
 	       NewPack->CurrentSource->ClusteringRadius < CellWidth[0][0])
 	  NewPack->CurrentSource = NewPack->CurrentSource->ParentSource;
+#endif /* PRE_MERGE */
 
 //	if (DEBUG) {
 //	  printf("Shine: MBH = %d, RS->Type = %d, E=%g, NewPack->Type = %d\n", 

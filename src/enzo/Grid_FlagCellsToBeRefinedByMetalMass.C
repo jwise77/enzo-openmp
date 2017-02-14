@@ -28,7 +28,7 @@ int grid::FlagCellsToBeRefinedByMetalMass(int level)
 {
 
   int i, dim, size, method;
-  const float Zsun = 0.0204;
+  const float Zsun = CoolData.SolarMetalFractionByMass;
  
   /* Return if this grid is not on this processor. */
  
@@ -69,7 +69,7 @@ int grid::FlagCellsToBeRefinedByMetalMass(int level)
   /* Compute the ModifiedMinimumMass */
  
   float ModifiedMinimumMassForRefinement =
-    (MetallicityForRefinement*Zsun) * 
+    (MetallicityRefinementMinMetallicity*Zsun) * 
     MinimumMassForRefinement[MassFlaggingMethod] * 
     POW(RefineBy, level*MinimumMassForRefinementLevelExponent[MassFlaggingMethod]);
 

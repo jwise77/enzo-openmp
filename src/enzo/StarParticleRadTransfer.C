@@ -66,11 +66,11 @@ int StarParticleRadTransfer(LevelHierarchyEntry *LevelArray[], int level,
 
   /* Retrieve the units */
 
-  FLOAT Time = LevelArray[level]->GridData->ReturnTime();
+  //FLOAT Time = LevelArray[level]->GridData->ReturnTime();
   float DensityUnits, LengthUnits, TemperatureUnits, TimeUnits,
     VelocityUnits;
   GetUnits(&DensityUnits, &LengthUnits, &TemperatureUnits,
-	   &TimeUnits, &VelocityUnits, Time);
+	   &TimeUnits, &VelocityUnits, PhotonTime);
 
   // Convert from #/s to RT units
   double LConv = (double) TimeUnits / pow(LengthUnits,3);
@@ -81,16 +81,17 @@ int StarParticleRadTransfer(LevelHierarchyEntry *LevelArray[], int level,
   for (cstar = AllStars; cstar; cstar = cstar->NextStar) {
 
     // Check the rules if this star particle is radiative
-    if (cstar->IsARadiationSource(Time)) {
+    if (cstar->IsARadiationSource(PhotonTime)) {
 
       // Calculate photon luminosity
-      if (cstar->ComputePhotonRates(nbins, energies, Q) == FAIL) {
+      if (cstar->ComputePhotonRates(TimeUnits, nbins, energies, Q) == FAIL) {
 	ENZO_FAIL("Error in ComputePhotonRates.\n");
       }
       
       QTotal = 0;
       for (j = 0; j < nbins; j++) QTotal += Q[j];
       for (j = 0; j < nbins; j++) Q[j] /= QTotal;
+      if (QTotal < tiny_number) continue;
 
       // Don't create a source if the luminosity is zero
       if (QTotal == 0.0) continue;
@@ -117,7 +118,7 @@ int StarParticleRadTransfer(LevelHierarchyEntry *LevelArray[], int level,
 	}
       } else if (cstar->ReturnType() == PopIII)
 	// should be an parameter or determined from the data
-	ramptime = TimeInYears * 50e3;
+	ramptime = TimeInYears * 10e3;
       else if (cstar->ReturnType() == SimpleSource)
 	ramptime = TimeInYears * 1e6 * SimpleRampTime;
 

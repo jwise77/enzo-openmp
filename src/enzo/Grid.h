@@ -27,6 +27,9 @@
 
 #include "TopGridData.h"
 
+#include "StochasticForcing.h"
+extern StochasticForcing Forcing;
+
 struct HierarchyEntry;
 
 #include "EnzoArray.h"
@@ -82,6 +85,7 @@ class grid
   FLOAT OldTime;                       // time corresponding to OldBaryonField
   int   SubgridsAreStatic;             // 
   int   ID;                            // Grid ID Number
+  int   sfSeed;
 //
 //  Baryon grid data
 //
@@ -146,6 +150,20 @@ class grid
   int    GravitatingMassFieldParticlesDimension[MAX_DIMENSION];
   gravity_boundary_type GravityBoundaryType;
   float  PotentialSum;
+
+
+  //
+  //  WS: total energy injection by stochastic forcing
+  //
+  float* EnergyInjection;
+  //
+  //  WS: Initial phase factors and multiplicators for stochastic forcing
+  //
+  float* PhaseFctInitEven;
+  float* PhaseFctInitOdd;
+  float* PhaseFctMultEven[MAX_DIMENSION];
+  float* PhaseFctMultOdd[MAX_DIMENSION];
+
 //
 //  Top grid parallelism (for implicit solvers)
 //
@@ -180,6 +198,11 @@ class grid
   float ParentEstimatedCostPerCell[MAX_COMPUTE_TIMERS];
   float ObservedCost[MAX_COMPUTE_TIMERS];
   float EstimatedCost[MAX_COMPUTE_TIMERS];
+
+// density and pressure history for one-zone collapse
+// for calculating effective gamma
+  float **freefall_density;
+  float **freefall_pressure;
 
 //
 // Friends
@@ -331,10 +354,12 @@ class grid
 private:
    int write_dataset(int ndims, hsize_t *dims, const char *name, hid_t group, 
        hid_t data_type, void *data, int active_only = TRUE,
-       float *temp=NULL);
+       float *temp=NULL, int *grid_start_index=NULL, int *grid_end_index=NULL,
+       int *active_dims=NULL, int *data_dims=NULL);
    int read_dataset(int ndims, hsize_t *dims, const char *name, hid_t group,
        hid_t data_type, void *read_to, int copy_back_active=FALSE,
-       float *copy_to=NULL, int *active_dims=NULL);
+       float *copy_to=NULL, int *active_dims=NULL, int *grid_start_index=NULL,
+       int *grid_end_index=NULL, int *data_dims=NULL);
    int ReadExtraFields(hid_t group_id);
 public:
 
@@ -381,7 +406,12 @@ public:
 /* Member functions for dealing with thermal conduction */
    int ComputeHeat(float dedt[]);	     /* Compute Heat */
    int ConductHeat();			     /* Conduct Heat */
-   int ComputeConductionTimeStep(float &dt); /* Estimate conduction time-step */
+   float ComputeConductionTimeStep(float &dt); /* Estimate conduction time-step */
+
+/* Member functions for dealing with Cosmic Ray Diffusion */
+
+   int ComputeCRDiffusion(); // CR Diffusion Method 
+   int ComputeCRDiffusionTimeStep(float &dt);
 
 /* Baryons: Copy current solution to Old solution (returns success/fail)
     (for step #16) */
@@ -496,9 +526,16 @@ public:
        PPMSteepeningParameter = p3;
      }
 
+/* Problem-type-specific: compute approximate ratio of pressure 
+gradient force to gravitational force for one-zone collapse test. */
+
+   int ComputeOneZoneCollapseFactor(float *force_factor);
+
 /* Baryons: compute the pressure at the requested time. */
 
-   int ComputePressure(FLOAT time, float *pressure);
+  int ComputePressure(FLOAT time, float *pressure,
+                      float MinimumSupportEnergyCoefficient=0,
+                      int IncludeCRs=0);
 
 /* Baryons: compute the pressure at the requested time using the dual energy
             formalism. */
@@ -507,7 +544,7 @@ public:
 
 /* Baryons: compute the temperature. */
 
-   int ComputeTemperatureField(float *temperature);
+   int ComputeTemperatureField(float *temperature,int IncludeCRs=0);
 
 /* Baryons: compute the temperature at the requested time using
    Gadget equilibrium cooling. */
@@ -540,7 +577,7 @@ public:
 
 /* Baryons: compute the cooling time. */
 
-   int ComputeCoolingTime(float *cooling_time);
+   int ComputeCoolingTime(float *cooling_time, int CoolingTimeOnly=FALSE);
 
 /* Baryons & DualEnergyFormalism: Restore consistency between total and
                                   internal energy fields. */
@@ -661,6 +698,10 @@ public:
 
    int MultiSpeciesHandler();
 
+/* Wrap the grackle chemistry solver. */
+
+   int GrackleWrapper();
+
 /* Handle the selection of shock finding algorithm */
 
    int ShocksHandler();
@@ -768,7 +809,8 @@ public:
    aren't local. */
 
    int SetParticleMassFlaggingField(int StartProc=0, int EndProc=0, int level=-1, 
-				    int ParticleMassMethod=-1, int *SendProcs=NULL, 
+				    int ParticleMassMethod=-1, int MustRefineMethod=-1,
+				    int *SendProcs=NULL, 
 				    int NumberOfSends=0);
    int CollectParticleMassFlaggingField(void);
    void ClearParticleMassFlaggingField(void);
@@ -785,6 +827,11 @@ public:
 
    int SetFlaggingField(int &NumberOfFlaggedCells, int level);
 
+
+/* Set flagging field from refine regions */
+
+   int SetFlaggingFieldMultiRefineRegions(int level);
+
 /* Set flagging field from static regions */
 
    int SetFlaggingFieldStaticRegions(int level, int &NumberOfFlaggedCells);
@@ -800,7 +847,8 @@ public:
 
 /* Particles: deposit particles to particle mass flagging field. */
 
-   int DepositMustRefineParticles(int pmethod, int level);
+   int DepositMustRefineParticles(int pmethod, int level,
+				  bool KeepFlaggingField);
 
 /* baryons: add baryon density to mass flaggin field (so the mass flagging
             field contains the mass in the cell (not the density) 
@@ -820,7 +868,7 @@ public:
      Returns the number of flagged cells.  Returns the number of flagged cells
      (gg #4) */
 
-   int FlagCellsToBeRefinedByMass(int level, int method);
+   int FlagCellsToBeRefinedByMass(int level, int method, int RestrictFlag);
 
 /* Flag all points that require refining by their slope.
      Returns the number of flagged cells.  Returns the number of flagged cells
@@ -828,6 +876,12 @@ public:
 
    int FlagCellsToBeRefinedBySlope();
 
+/* Flag all points that require refining by their slope.
+     Returns the number of flagged cells.  Returns the number of flagged cells
+     (gg #4) */
+
+   int FlagCellsToBeRefinedBySecondDerivative();
+ 
 /* Flag all points that require refinging by the presence of shocks.
      Returns the number of flagged cells.  Returns the number of flagged cells
      (gg #4) */
@@ -859,9 +913,12 @@ public:
 
    int FlagCellsToBeRefinedByCoolingTime();
 
-/* Flag all cells which are near a must-refine particle. */
+/* Flag particles within the MustRefineParticles region as MustRefine Particles */
+   int MustRefineParticlesFlagInRegion();
 
-   int FlagCellsToBeRefinedByMustRefineParticles();
+/* Flag MustRefine Particles from list */
+
+   int MustRefineParticlesFlagFromList();
 
 /* Flag all cells which are within a user-specified refinement region. */
 
@@ -916,7 +973,9 @@ public:
 /* baryons: interpolate field values from the Parent Grid (gg #6).
             Returns SUCCESS or FAIL. */
 
-   int InterpolateFieldValues(grid *ParentGrid);
+   int InterpolateFieldValues(grid *ParentGrid , 
+			      LevelHierarchyEntry * OldFineLevel, TopGridData * MetaData);
+
 
 /* Interpolate one radiation field.  Based on InterpolateFieldValues
    but removed all of the conservative stuff. */   
@@ -1298,7 +1357,8 @@ public:
    int DepositParticlePositions(grid *TargetGrid, FLOAT DepositTime, 
 				int DepositField);
 
-   int DepositParticlePositionsLocal(FLOAT DepositTime, int DepositField);
+   int DepositParticlePositionsLocal(FLOAT DepositTime, int DepositField,
+				     bool BothFlags);
 
 /* Particles: add overlapping ParticleMassField to Target's 
    GravitatingMassField. */
@@ -1550,7 +1610,8 @@ int CreateParticleTypeGrouping(hid_t ptype_dset,
 /* Move a grid from one processor to another. */
 
   int CommunicationMoveGrid(int ToProcessor, int MoveParticles = TRUE,
-			    int DeleteAllFields = TRUE);
+			    int DeleteAllFields = TRUE, 
+			    int MoveSubgridMarker = FALSE);
 
 /* Move only the fields from the grids */
 
@@ -1658,6 +1719,9 @@ int CreateParticleTypeGrouping(hid_t ptype_dset,
   int IdentifyPhysicalQuantities(int &DensNum, int &GENum,   int &Vel1Num, 
 				 int &Vel2Num, int &Vel3Num, int &TENum);
 
+  int IdentifyPhysicalQuantities(int &DensNum, int &GENum,   int &Vel1Num,
+				 int &Vel2Num, int &Vel3Num, int &TENum, int &CRNum);
+
   int IdentifyPhysicalQuantities(int &DensNum, int &GENum, int &Vel1Num, 
 				 int &Vel2Num, int &Vel3Num, int &TENum,
 				 int &B1Num, int &B2Num, int &B3Num);
@@ -1665,6 +1729,10 @@ int CreateParticleTypeGrouping(hid_t ptype_dset,
   int IdentifyPhysicalQuantities(int &DensNum, int &GENum, int &Vel1Num, 
 				 int &Vel2Num, int &Vel3Num, int &TENum,
 				 int &B1Num, int &B2Num, int &B3Num, int &PhiNum);
+
+  int IdentifyPhysicalQuantities(int &DensNum, int &GENum, int &Vel1Num,
+				 int &Vel2Num, int &Vel3Num, int &TENum,
+				 int &B1Num, int &B2Num, int &B3Num, int &PhiNum, int &CRNum);
 
   /* Identify driving fields */
 
@@ -1677,7 +1745,7 @@ int CreateParticleTypeGrouping(hid_t ptype_dset,
   /* Identify colour field */
 
   int IdentifyColourFields(int &SNColourNum, int &MetalNum, 
-			   int &MetalIaNum, int &MBHColourNum,
+			   int &MetalIaNum, int &MetalIINum, int &MBHColourNum,
 			   int &Galaxy1ColourNum, int &Galaxy2ColourNum);
 
   /* Identify Multi-species fields. */
@@ -1713,9 +1781,10 @@ int CreateParticleTypeGrouping(hid_t ptype_dset,
 /* PPM Direct Euler Solver. */
 
 int SolvePPM_DE(int CycleNumber, int NumberOfSubgrids, 
-		fluxes *SubgridFluxes[], float *CellWidthTemp[], 
-		Elong_int GridGlobalStart[], int GravityOn, 
-		int NumberOfColours, int colnum[]);
+                fluxes *SubgridFluxes[], float *CellWidthTemp[],
+                Elong_int GridGlobalStart[], int GravityOn,
+                int NumberOfColours, int colnum[],
+                float MinimumSupportEnergyCoefficient);
 
 int xEulerSweep(int k, int NumberOfSubgrids, fluxes *SubgridFluxes[], 
 		Elong_int GridGlobalStart[], float *CellWidthTemp[], 
@@ -1789,11 +1858,35 @@ int inteuler(int idim,
 				    float LeftPressure, float RightPressure,
 				    float CenterPressure);
 
+/* Cosmic Ray Shock Tube Problems: Initialize grid (returns SUCCESS or FAIL) */
+
+  int CRShockTubesInitializeGrid(float InitialDiscontinuity,
+				 float LeftDensity, float RightDensity,
+				 float LeftVelocityX, float RightVelocityX,
+				 float LeftVelocityY, float RightVelocityY,
+				 float LeftVelocityZ, float RightVelocityZ,
+				 float LeftPressure, float RightPressure,
+				 float LeftCRDensity, float RightCRDensity);
+  int CRShockTubesInitializeGrid(float InitialDiscontinuity,
+				 float SecondDiscontinuity,
+				 float LeftDensity, float RightDensity,
+				 float CenterDensity,
+				 float LeftVelocityX, float RightVelocityX,
+				 float CenterVelocityX,
+				 float LeftVelocityY, float RightVelocityY,
+				 float CenterVelocityY,
+				 float LeftVelocityZ, float RightVelocityZ,
+				 float CenterVelocityZ,
+				 float LeftPressure, float RightPressure,
+				 float CenterPressure,
+				 float LeftCRDensity, float RightCRDensity,
+				 float CenterCRDensity);
+
 /* Initialize for a uniform grid (returns SUCCESS or FAIL) */
 
   int InitializeUniformGrid(float UniformDensity, float UniformTotalEnergy,
 			    float UniformGasEnergy, float UniformVelocity[], 
-			    float UniformBField[]);
+			    float UniformBField[], float UniformCR = 0.0);
 
 
 /* Initialize a grid for the Double Mach reflection problem. */
@@ -1842,10 +1935,26 @@ int inteuler(int idim,
 				     float RotatingCylinderLambda,
 				     float RotatingCylinderOverdensity);
 
-  int RotatingSphereInitializeGrid(FLOAT RotatingSphereRadius,
-				     FLOAT RotatingSphereCenterPosition[MAX_DIMENSION],
-				     float RotatingSphereLambda,
-				     float RotatingSphereOverdensity);
+  int RotatingDiskInitializeGrid(float RDScaleRadius,
+				 float RDScaleHeight, 
+				 float RDTemperature,
+				 float RDDMConcentration, 
+				 float RDTotalDMMass,
+				 float RDCentralDensity,
+				 float RDOuterEdge);
+
+  int RotatingSphereInitializeGrid(float RotatingSphereNFWMass,
+                                   float RotatingSphereNFWConcentration,
+                                   float RotatingSphereCoreRadius,
+                                   float RotatingSphereCentralDensity,
+                                   float RotatingSphereCoreDensityExponent,
+                                   float RotatingSphereOuterDensityExponent,
+                                   float RotatingSphereExternalTemperature,
+                                   float RotatingSphereSpinParameter,
+                                   float RotatingSphereAngularMomentumExponent,
+                                   int RotatingSphereUseTurbulence,
+				   float RotatingSphereTurbulenceRMS,
+                                   float RotatingSphereRedshift);
 
   /* Initialize a grid for the KH instability problem. */
 
@@ -1853,7 +1962,22 @@ int inteuler(int idim,
                        float KHInnerInternalEnergy,
                        float KHOuterInternalEnergy,
                        float KHPerturbationAmplitude,
-                       float KHInnerVx, float KHOuterVx);
+                       float KHInnerVx, float KHOuterVx,
+                       float KHInnerPressure,
+                       float KHOuterPressure,
+                       int   KHRandomSeed);
+
+  /* Initialize a grid for the KH instability problem including a ramp. */
+
+  int KHInitializeGridRamp(float KHInnerDensity,
+                           float KHOuterDensity,
+                           float KHInnerInternalEnergy,
+                           float KHOuterInternalEnergy,
+                           float KHPerturbationAmplitude,
+                           float KHInnerVx, float KHOuterVx,
+                           float KHInnerPressure,
+                           float KHOuterPressure,
+                           float KHRampWidth);
 
   /* Initialize a grid and set boundary for the 2D/3D Noh problem. */
 
@@ -1882,6 +2006,12 @@ int inteuler(int idim,
 			      float CentralMass,
 			      float TestMass,
 			      int UseBaryons);
+
+/* Star Particle test: initialize particle */
+  int TestStarParticleInitializeGrid(float TestStarParticleStarMass, 
+				     float *Initialdt,
+				     FLOAT TestStarParticleStarVelocity[],
+				     FLOAT TestStarParticleStarPosition[]);
 
 /* Gravity Test: initialize grid. */
 
@@ -1963,13 +2093,27 @@ int inteuler(int idim,
 			     float SphereAng2[MAX_SPHERES],
 			     int   SphereNumShells[MAX_SPHERES],
 			     int   SphereType[MAX_SPHERES],
+			     int   SphereConstantPressure[MAX_SPHERES],
+			     int   SphereSmoothSurface[MAX_SPHERES],
+			     float SphereSmoothRadius[MAX_SPHERES],
+			     float SphereHII[MAX_SPHERES],
+			     float SphereHeII[MAX_SPHERES],
+			     float SphereHeIII[MAX_SPHERES],
+			     float SphereH2I[MAX_SPHERES],
 			     int   SphereUseParticles,
 			     float ParticleMeanDensity,
 			     float UniformVelocity[MAX_DIMENSION],
 			     int   SphereUseColour,
 			     int   SphereUseMetals,
 			     float InitialTemperature, 
-			     float InitialDensity, int level);
+			     float InitialDensity, int level,
+			     float CollapseTestInitialFractionHII, 
+			     float CollapseTestInitialFractionHeII,
+			     float CollapseTestInitialFractionHeIII, 
+			     float CollapseTestInitialFractionHM,
+			     float CollapseTestInitialFractionH2I, 
+			     float CollapseTestInitialFractionH2II);
+
 
 /* Cluster: initialize grid. */
 
@@ -1984,7 +2128,8 @@ int inteuler(int idim,
                              int   SphereUseParticles,
                              float UniformVelocity[MAX_DIMENSION],
                              int   SphereUseColour,
-                             float InitialTemperature, int level);
+                             float InitialTemperature, 
+			     float ClusterInitialSpinParameter, int level);
 
   /* CosmologySimulation: initialize grid. */
   int CosmologySimulationInitializeGrid(
@@ -2088,15 +2233,21 @@ int inteuler(int idim,
 				     FLOAT DiskPosition[MAX_DIMENSION], 
 				     FLOAT ScaleHeightz,
 				     FLOAT ScaleHeightR, 
+				     FLOAT GalaxyTruncationRadius,
 				     float DMConcentration,
 				     float DiskTemperature,
 				     float InitialTemperature,
+				     float UniformDensity,
+				     int   GasHalo,
+				     float GasHaloScaleRadius,
+				     float GasHaloDensity,
 				     float AngularMomentum[MAX_DIMENSION],
 				     float UniformVelocity[MAX_DIMENSION], 
 				     int UseMetallicityField, 
 				     float GalaxySimulationInflowTime,
 				     float GalaxySimulationInflowDensity,
-				     int level);
+				     int level,
+				     float GalaxySimulationCR = 0.0 );
 
   /* Free expansion test */
   int FreeExpansionInitializeGrid(int FreeExpansionFullBox,
@@ -2147,7 +2298,8 @@ int inteuler(int idim,
 				      float V1Const, float V2Const,
 				      float IEConstIn, float IEConstOut, 
 				      float EgConst, float HMassFrac, 
-				      float InitFracHII, float ClumpCenterX0, 
+				      float InitFracHII, float InitFracHeII, 
+				      float InitFracHeIII, float ClumpCenterX0, 
 				      float ClumpCenterX1, float ClumpCenterX2, 
 				      float ClumpRadius, int local);
 
@@ -2157,13 +2309,17 @@ int inteuler(int idim,
 				      float DensityCenter1, float DensityCenter2, 
 				      float V0Const, float V1Const, 
 				      float V2Const, float IEConst, 
-				      float EgConst, float InitFracHII, int local);
+				      float EgConst, float HMassFrac, 
+				      float InitFracHII, float InitFracHeII, 
+				      float InitFracHeIII, int local);
 
   /* FLD Radiation test problem: cosmological HII ioniztion (SUCCESS or FAIL) */
   int CosmoIonizationInitializeGrid(int NumChem, float VxConst, float VyConst, 
 				    float VzConst, float IEConst, 
-				    float EgConst, float InitFracHII, 
-				    float OmegaBaryonNow, int local);
+				    float EgConst, float HMassFrac, 
+				    float InitFracHII, float InitFracHeII, 
+				    float InitFracHeIII, float OmegaBaryonNow, 
+				    int local);
 
   /* FLD Radiation test problem: stream test (SUCCESS or FAIL) */
   int RadHydroStreamTestInitializeGrid(float DensityConst, float EgConst,
@@ -2269,6 +2425,19 @@ int inteuler(int idim,
 //  int TurbulenceSimulationInitializeGrid(TURBULENCE_INIT_PARAMETERS_DECL);
  public:
 
+    /* Stochastic forcing: initialization. */
+
+    int DrivenFlowInitializeGrid(float StochasticFlowDensity,
+    float StochasticFlowPressure, float InitialBField,int SetBaryonFields); // WS
+
+    /* Stochastic forcing: Calculate initial phase factors and phase multiplicators
+    for the inverse FT of the forcing spectrum onto a particular grid domain */
+
+    void Phases(); // WS
+
+    /* Stochastic forcing: Compute physical force field via inverse FT of the forcing pectrum */
+
+    int FTStochasticForcing(int FieldDim); // WS
 
 /* Comoving coordinate expansion terms. */
 
@@ -2286,6 +2455,12 @@ int inteuler(int idim,
 /* Particle splitter routine. */
 
   int ParticleSplitter(int level);
+
+  int CreateChildParticles(float dx, int NumberOfParticles, float *ParticleMass,
+			   int *ParticleType, FLOAT *ParticlePosition[],
+			   float *ParticleVelocity[], float *ParticleAttribute[],
+			   FLOAT *CellLeftEdge[], int *GridDimension, 
+			   int MaximumNumberOfNewParticles, int *NumberOfNewParticles);
 
 /* Magnetic field resetting routine. */
 
@@ -2452,7 +2627,7 @@ int inteuler(int idim,
 			float LengthUnits, float VelocityUnits, 
 			float TemperatureUnits, float TimeUnits, double EjectaDensity, 
 			double EjectaMetalDensity, double EjectaThermalEnergy,
-			int &CellsModified);
+			double Q_HI, double sigma_HI, float deltaE, int &CellsModified);
 
   int SubtractAccretedMassFromSphere(Star *cstar, int level, float radius, float DensityUnits,
 				     float LengthUnits, float VelocityUnits, 
@@ -2565,6 +2740,8 @@ int inteuler(int idim,
 // new hydro & MHD routines
 //------------------------------------------------------------------------
 
+  int ClusterSMBHFeedback(int level);
+  int ClusterSMBHEachGridGasMass(int level);
   int SetNumberOfColours(void);
   int SaveSubgridFluxes(fluxes *SubgridFluxes[], int NumberOfSubgrids,
                         float *Flux3D[], int flux, float fluxcoef, float dt);
@@ -2630,7 +2807,7 @@ int inteuler(int idim,
 			      float vyl,  float vyu,
 			      float pl,   float pu,
 			      float Bxl,  float Bxu,
-			      float Byl,  float Byu);
+			      float Byl,  float Byu, int SetBaryonFields);
   int MHD3DTestInitializeGrid(int MHD3DProblemType,
 			      float rhol, float rhou,
 			      float vxl,  float vxu,
@@ -2773,6 +2950,7 @@ int inteuler(int idim,
 // CUDA MHD routines
 //------------------------------------------------------------------------
 #ifdef ECUDA
+  void CudaMHDMalloc(void **p, size_t size);
   void CudaMHDMallocGPUData();
   void CudaMHDFreeGPUData();
   void CudaSolveMHDEquations(fluxes *SubgridFluxes[], int NumberOfSubgrids, int renorm);
@@ -2788,19 +2966,91 @@ int inteuler(int idim,
                          int NumberOfSubgrids, int level,
                          ExternalBoundary *Exterior);
 #endif
-  int ZeroAcceleration(){
-    float size = 1;
-    int dim, i;
-    for (dim = 0; dim < GridRank; dim++)
-      size *= GridDimension[dim];
-    for (dim = 0; dim < GridRank; dim++) {
-      if( AccelerationField[dim] != NULL ) 
-	for (i = 0; i < size; i++)
-	  AccelerationField[dim][i] = 0;
-    }
-    return SUCCESS;
-  }//zero
 
+  int SolveMHD_Li(int CycleNumber, int NumberOfSubgrids,
+                 fluxes *SubgridFluxes[], float *CellWidthTemp[],
+                 Elong_int GridGlobalStart[], int GravityOn,
+                 int NumberOfColours, int colnum[],
+                 float ** Fluxes);
+
+  //Variables
+    //CenteredB is used in the Riemann solver (SolveMHDequations) and the timestep (dtMagnetic)
+  //MagneticField is the face centered magnetic field, and is the quantity ultimately updated by the 
+  //CT style algorithm.
+  float *MagneticField[3]; 
+  float *ElectricField[3];
+  float *AvgElectricField[3];
+  float *OldMagneticField[3];
+  float *OldElectricField[3];
+  //Magnetic dimensions: MagneticDims[field][axis]
+  int MagneticDims[3][3], ElectricDims[3][3];
+  int MHDStartIndex[3][3], MHDEndIndex[3][3];//For the MagneticField
+  int MHDeStartIndex[3][3], MHDeEndIndex[3][3];//Electric Field
+  int MHDAdd[3][3]; //How much to add to Barryon Dimensions.  MHDAdd[i][j]=KronikerDelta(i,j)
+  int MagneticSize[3];
+  int ElectricSize[3];
+
+  float dtParent; //used for the Electric Field update.
+
+  //MHDParentTemp is used for the interpolation.
+  //It's a member of the grid class because it's also used in CopyZonesFromGrid,
+  //for the prolongation (see Balsara's AMR MHD paper), which has no knowledge of the parent.
+
+  float *MHDParentTemp[3];
+  int MHDParentTempPermanent[3];
+  int    MHDRefinementFactors[3];
+  FLOAT ParentDx, ParentDy, ParentDz;
+
+  
+  float *DyBx, *DzBx, *DyzBx;
+  float *DxBy, *DzBy, *DxzBy;
+  float *DxBz, *DyBz, *DxyBz;
+  int * DBxFlag, *DByFlag, *DBzFlag;
+
+  int MHD_Diagnose(char * message, float * &DivB);
+  inline int indexb1(int i, int j, int k)    {return i+MagneticDims[0][0]*(j+MagneticDims[0][1]*k);}  
+  inline int indexb2(int i, int j, int k)    {return i+MagneticDims[1][0]*(j+MagneticDims[1][1]*k);}  
+  inline int indexb3(int i, int j, int k)    {return i+MagneticDims[2][0]*(j+MagneticDims[2][1]*k);}
+  int MHD_CID(LevelHierarchyEntry * OldFineLevel, TopGridData * MetaData, int Offset[], int TempDim[], int Refinement[]);
+  int MHD_CIDWorker(grid* OtherGrid, FLOAT EdgeOffset[MAX_DIMENSION]);
+  int MHD_SendOldFineGrids(LevelHierarchyEntry * OldFineLevel, grid *ParentGrid, TopGridData *MetaData);
+  int MHD_ProlongAllocate(int * ChildDim);
+  int MHD_DCheck(int * ChildDim, char * mess);
+  int MHD_ProlongFree();
+  void MHD_SetupDims(void);
+  //Evolution/AMR routines
+  int SolveMHDEquations(int CycleNumber, int NumberOfSubgrids,
+			fluxes *SubgridFluxes[], int level, int grid);
+  int ComputeElectricField(float dT, float ** Fluxes);
+  int MHD_Curl( int * Start, int * End, int Method);
+  int CenterMagneticField(int * Start = NULL, int * End = NULL);
+
+  int ClearAvgElectricField();
+ int MHD_UpdateMagneticField(int level, LevelHierarchyEntry * Level,
+                             int TimeIsBeforeSetLevelTimestep);
+  int MHD_ProjectFace(grid &ParentGrid,
+		  boundary_type LeftFaceBoundaryCondition[],
+		      boundary_type RightFaceBoundaryCondition[]);
+
+  //Test Problems
+  int MHDBlastInitializeGrid(float Density0, float Density1,
+                             float Energy0,  float Energy1,
+                             float Velocity0[], float Velocity1[],
+                             float B0[], float B1[],
+                             float Radius, float MHDBlastCenter[], int LongDimension,
+                             float PerturbAmplitude, int PerturbMethod, float PerturbWavelength[],
+                             int InitStyle);
+  int MHDOrszagTangInitGrid(float Density,float Pressure, float V0, float B0 );
+  int MHDLoopInitGrid(float LoopDensity,float Pressure, float Vx, float Vy, float Vz, float B0, FLOAT R0, 
+                      FLOAT Center[], int CurrentAxis);
+
+
+  //See Grid_MHDCTEnergyToggle.C for details on these functions.
+  float *MHDCT_temp_conserved_energy;
+  int MHDCT_ConvertEnergyToConservedC();
+  int MHDCT_ConvertEnergyToSpecificC();
+  int MHDCT_ConvertEnergyToConservedS();
+  int MHDCT_ConvertEnergyToSpecificS();
 
 };
 

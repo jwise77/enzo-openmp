@@ -69,6 +69,7 @@ int RadiativeTransferReadParameters(FILE *fptr)
   RadiativeTransferTraceSpectrumTable         = (char*) "spectrum_table.dat";
   RadiativeTransferSourceBeamAngle            = 30.0;
   RadiativeTransferLoadBalance                = FALSE;
+  RadiativeTransferHubbleTimeFraction         = 0.1;
 
   if (MultiSpecies == 0)
     RadiativeTransferOpticallyThinH2 = FALSE;
@@ -133,6 +134,8 @@ int RadiativeTransferReadParameters(FILE *fptr)
 		  &RadiativeTransferTraceSpectrum);
     ret += sscanf(line, "RadiativeTransferLoadBalance = %"ISYM, 
 		  &RadiativeTransferLoadBalance);
+    ret += sscanf(line, "RadiativeTransferHubbleTimeFraction = %"FSYM, 
+		  &RadiativeTransferHubbleTimeFraction);
     if (sscanf(line, "RadiativeTransferTraceSpectrumTable = %s", dummy) == 1)
       RadiativeTransferTraceSpectrumTable = dummy;  
     ret += sscanf(line, "dtPhoton = %"FSYM, &dtPhoton);
@@ -191,13 +194,13 @@ int RadiativeTransferReadParameters(FILE *fptr)
   }
 
 
-  // If RadiativeTransferFLD > 1, turn off RadiativeCooling
-  if (RadiativeTransferFLD > 1  &&  RadiativeCooling) {
-    if (MyProcessorNumber == ROOT_PROCESSOR)
-      fprintf(stderr, "Warning: RadiativeTransferFLD > 1 cannot be used with "
-	      "RadiativeCooling solver.  Turning RadiativeCooling OFF.\n");
-    RadiativeCooling = 0;
-  }
+//   // If RadiativeTransferFLD > 1, turn off RadiativeCooling
+//   if (RadiativeTransferFLD > 1  &&  RadiativeCooling) {
+//     if (MyProcessorNumber == ROOT_PROCESSOR)
+//       fprintf(stderr, "Warning: RadiativeTransferFLD > 1 cannot be used with "
+// 	      "RadiativeCooling solver.  Turning RadiativeCooling OFF.\n");
+//     RadiativeCooling = 0;
+//   }
 
   // If RadiativeTransferFLD > 1, reset RadiationFieldType (if necessary)
   if (RadiativeTransferFLD > 1  &&  (RadiationFieldType != 0)) {
