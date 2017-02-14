@@ -11,7 +11,7 @@
        in, jn, kn, nratec, iexpand, imethod, &
        idual, ispecies, imetal, imcool, idust, idim, &
        is, js, ks, ie, je, ke, imax, ih2co, ipiht, igammah, &
-       dt, aye, redshift, temstart, temend, &
+       dx, dt, aye, redshift, temstart, temend, &
        utem, uxyz, uaye, urho, utim, &
        eta1, eta2, gamma, fh, dtoh, z_solar, &
        k1a, k2a, k3a, k4a, k5a, k6a, k7a, k8a, k9a, k10a, &
@@ -134,6 +134,7 @@
          iradcoupled, iradstep, n_xe, imcool, idust, irt_honly, &
          igammah, ih2optical, iciecool, ithreebody, imax, &
          ndratec
+    P_PREC, intent(in) :: dx
     R_PREC, intent(in) :: dt, aye, temstart, temend, eta1, eta2, gamma, &
          utim, uxyz, uaye, urho, utem, fh, dtoh, xe_start, xe_end, &
          dtemstart, dtemend, z_solar, redshift
@@ -208,7 +209,7 @@
     R_PREC :: ttmin, dom, energy, comp1, comp2, olddtit
     real*8 :: coolunit, dbase1, tbase1, xbase1, chunit, uvel
     real*8 :: heq1, heq2, eqk221, eqk222, eqk131, eqk132, &
-         eqt1, eqt2, eqtdef, dheq, heq, dlogtem
+         eqt1, eqt2, eqtdef, dheq, heq, dlogtem, dx_cgs
 
     !  row temporaries
 
@@ -222,7 +223,7 @@
     R_PREC, dimension(:), allocatable :: &
          HIp, HIIp, HeIp, HeIIp, HeIIIp, HMp, H2Ip, H2IIp, dep, &
          dedot, HIdot, dedot_prev, DIp, DIIp, HDIp, HIdot_prev, &
-         k24shield, k25shield, k26shield, &
+         k24shield, k25shield, k26shield, k31shield, &
          h2dust, ncrn, ncrd1, ncrd2
     R_PREC, dimension(:), allocatable :: &
          k1 , k2 , k3 , k4 , k5 , k6 , k7 , k8 , k9 , k10, k11, &
@@ -355,6 +356,7 @@
       chunit = (1.60218e-12_RKIND)/(2._RKIND*uvel*uvel*mh)   ! 1 eV per H2 formed
 
       dlogtem = (log(temend) - log(temstart))/real(nratec-1,RKIND)
+      dx_cgs = dx * xbase1
 
 !  Convert densities from comoving to proper
 
@@ -459,8 +461,8 @@
 
             call lookup_cool_rates1d(temstart, temend, nratec, j, k, &
                  is, ie, imax, iradtype, iradshield, ithreebody,     &
-                 in, jn, kn, ispecies, idust,                        &
-                 tgas, HI, HII, HeI, HeII, tdust, metallicity,       &
+                 in, jn, kn, ispecies, idust, tgas,                  &
+                 d, HI, HII, HeI, HeII, H2I, tdust, metallicity,     &
                  k1a, k2a, k3a, k4a, k5a, k6a, k7a, k8a, k9a, k10a,  &
                  k11a, k12a, k13a, k13dda, k14a, k15a, k16a,         &
                  k17a, k18a, k19a, k22a,                             &
@@ -470,12 +472,13 @@
                  avgsighp, avgsighep, avgsighe2p, piHI, piHeI,       &
                  k1, k2, k3, k4, k5, k6, k7, k8, k9, k10,            &
                  k11, k12, k13, k14, k15, k16, k17, k18,             &
-                 k19, k22, k24, k25, k26,                            &
+                 k19, k22, k24, k25, k26, k31,                       &
                  k50, k51, k52, k53, k54, k55,                       &
                  k56, k13dd, k24shield, k25shield, k26shield,        &
-                 h2dust, ncrn, ncrd1, ncrd2,                         &
+                 k31shield, h2dust, ncrn, ncrd1, ncrd2,              &
                  t1, t2, tdef, logtem, indixe,                       &
-                 dom, coolunit, tbase1, itmask)
+                 dom, coolunit, tbase1, xbase1, dx_cgs, iradtrans,   &
+                 kdissH2I, itmask)
 
 !           Compute dedot and HIdot, the rates of change of de and HI
 !             (should add itmask to this call)
@@ -486,12 +489,12 @@
                  in, jn, kn, is, ie, j, k,                     &
                  k1, k2, k3, k4, k5, k6, k7, k8, k9, k10, k11, &
                  k12, k13, k14, k15, k16, k17, k18, k19, k22,  &
-                 k24, k25, k26, k27, k28, k29, k30, k31,       &
+                 k24, k25, k26, k27, k28, k29, k30,            &
                  k50, k51, k52, k53, k54, k55, k56,            &
                  h2dust, ncrn, ncrd1, ncrd2, rhoH,             &
-                 k24shield, k25shield, k26shield,              &
+                 k24shield, k25shield, k26shield, k31shield,   &
                  iradtrans, irt_honly, kphHI, kphHeI, kphHeII, &
-                 kdissH2I, itmask, edot, chunit, dom)
+                 itmask, edot, chunit, dom)
 
 !           Find timestep that keeps relative chemical changes below 10%
 
@@ -509,7 +512,8 @@
 
                if (min(abs(k1(i)* de(i,j,k)*HI(i,j,k)), &
                     abs(k2(i)*HII(i,j,k)*de(i,j,k)))/&
-                    max(abs(dedot(i)),abs(HIdot(i))) .gt. 1.e6_RKIND) then
+                    max(abs(dedot(i)),abs(HIdot(i)))&
+                    > 1.e6_RKIND) then
                   dedot(i) = tiny
                   HIdot(i) = tiny
                endif
@@ -532,7 +536,10 @@
                     abs(0.1_RKIND*HI(i,j,k)/HIdot(i)), &
                     dt-ttot(i), 0.5_RKIND*dt)
 
-              if (d(i,j,k)*dom .gt. 1.e8_RKIND .and. edot(i) .gt. 0._RKIND)then
+               if (d(i,j,k)*dom .gt. 1.e8_RKIND .and. edot(i) .gt. 0._RKIND &
+                    .and. ispecies > 1 .and. &
+                    ( iradtrans .eq. 0 .or. &
+                     (iradtrans .eq. 1 .and. kphHI(i,j,k) <= 0.0)))then
                 ! Equilibrium value for H is:
                 !  H = (-1.0 / (4*k22)) * (k13 - sqrt(8 k13 k22 rho + k13^2))
                 ! We now want this to change by 10% or less, but we're only
@@ -718,15 +725,15 @@
                  in, jn, kn, is, ie, j, k, ispecies, idust,    &
                  k1, k2, k3, k4, k5, k6, k7, k8, k9, k10, k11, &
                  k12, k13, k14, k15, k16, k17, k18, k19, k22,  &
-                 k24, k25, k26, k27, k28, k29, k30, k31,       &
+                 k24, k25, k26, k27, k28, k29, k30,            &
                  k50, k51, k52, k53, k54, k55, k56,            &
                  h2dust, rhoH,                                 &
-                 k24shield, k25shield, k26shield,              &
+                 k24shield, k25shield, k26shield, k31shield,   &
                  HIp, HIIp, HeIp, HeIIp, HeIIIp, dep,          &
                  HMp, H2Ip, H2IIp, DIp, DIIp, HDIp,            &
                  dedot_prev, HIdot_prev,                       &
                  iradtrans, irt_honly, kphHI, kphHeI, kphHeII, &
-                 kdissH2I, itmask)
+                 itmask)
 
 !           Add the timestep to the elapsed time for each cell and find
 !            minimum elapsed time step in this row
