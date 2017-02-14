@@ -69,8 +69,9 @@ int Star::SetFeedbackFlag(FLOAT Time)
     if (this->type < 0) // birth
       this->FeedbackFlag = FORMATION;
     else if (Time > this->BirthTime + this->LifeTime) // endpoint
-      if ((this->Mass >= PISNLowerMass && this->Mass <= PISNUpperMass) ||
-	  (this->Mass >= TypeIILowerMass && this->Mass <= TypeIIUpperMass))
+      if (((this->Mass >= PISNLowerMass && this->Mass <= PISNUpperMass) ||
+	   (this->Mass >= TypeIILowerMass && this->Mass <= TypeIIUpperMass)) &&
+	  PopIIISupernovaExplosions == TRUE)
 	this->FeedbackFlag = SUPERNOVA;
       else
 	this->FeedbackFlag = NO_FEEDBACK; // BH formation
@@ -126,7 +127,10 @@ int Star::SetFeedbackFlag(FLOAT Time)
     else
       this->FeedbackFlag = NO_FEEDBACK;      
 #endif
+    break;
 
+  default:
+    this->FeedbackFlag = NO_FEEDBACK;
     break;
 
   } // ENDSWITCH

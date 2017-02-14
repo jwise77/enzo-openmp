@@ -49,7 +49,7 @@ int grid::PoissonSolver(int level)
   */
 {
 
-  if (ProcessorNumber != MyProcessorNumber || UseDivergenceCleaning==0 || useMHD==0 ) {
+  if (ProcessorNumber != MyProcessorNumber || UseDivergenceCleaning==0 || UseMHD==0 ) {
    
     return SUCCESS;
   }
@@ -788,6 +788,8 @@ int grid::PrintToScreenBoundaries(float *field, char *display){
   //PrintToScreenBoundaries(field, display, 1, NumberOfGhostZones, 0, 0.0);
   // PrintToScreenBoundaries(field, display, 0, NumberOfGhostZones, 0, 0.0);
 
+  return SUCCESS;
+
 }
 
 int grid::PrintToScreenBoundaries(){
@@ -808,6 +810,9 @@ int grid::PrintToScreenBoundaries(){
     PrintToScreenBoundaries(OldBaryonField[i], "old", 0, NumberOfGhostZones, 0, 0.0);
     PrintToScreenBoundaries(BaryonField[i], "new", 0, NumberOfGhostZones, 0, 0.0);
   }
+  
+  return SUCCESS;
+
 }
 
 

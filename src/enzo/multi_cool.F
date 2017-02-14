@@ -61,7 +61,7 @@
      &        idual, iexpand, ih2co, ipiht, ispecies, imetal, idim,
      &        iradtype, nfreq, imetalregen, iradshield, n_xe, iradtrans,
      &        imcool, idust, igammah
-      R_PREC    dt, aye, temstart, temend, redshift,
+      R_PREC    dt, aye, redshift, temstart, temend,
      &        utem, uxyz, uaye, urho, utim, z_solar,
      &        eta1, eta2, gamma, xe_start, xe_end
       R_PREC    d(in,jn,kn),   ge(in,jn,kn),     e(in,jn,kn),

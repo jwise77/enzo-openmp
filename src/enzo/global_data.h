@@ -149,6 +149,7 @@ EXTERN int FastSiblingLocatorEntireDomain;
 			 11 = FlagCellsToBeRefinedByResistiveLength
                          12 = FlagCellsToBeRefinedByMustRefineRegion
 			 13 = FlagCellsToBeRefinedByMetallicity
+       15 = FlagCellsToBeRefinedBySecondDerivative
  */
 
 EXTERN int CellFlaggingMethod[MAX_FLAGGING_METHODS];
@@ -187,6 +188,11 @@ EXTERN float TimestepSafetyVelocity;
 
 EXTERN int FluxCorrection;
 
+/* Cooling time timestep limit. */
+
+EXTERN int UseCoolingTimestep;
+EXTERN float CoolingTimestepSafetyFactor;
+
 /* This specifies the interpolation method (see typedefs.h). */
 
 EXTERN interpolation_type InterpolationMethod;
@@ -212,6 +218,10 @@ EXTERN int MinimumSubgridEdge;
 
 EXTERN int MaximumSubgridSize;
 
+/* This is the maximum allowed ratio for a new subgrid */
+
+EXTERN float CriticalGridRatio;
+
 /* The number of zones that will be refined around each flagged zone. */
 
 EXTERN int NumberOfBufferZones;
@@ -236,6 +246,20 @@ EXTERN FLOAT RefineRegionLeftEdge[MAX_DIMENSION],
              RefineRegionRightEdge[MAX_DIMENSION];
 EXTERN int RefineRegionAutoAdjust;
 
+EXTERN int MultiRefineRegion;
+EXTERN FLOAT MultiRefineRegionLeftEdge[MAX_STATIC_REGIONS][MAX_DIMENSION], 
+             MultiRefineRegionRightEdge[MAX_STATIC_REGIONS][MAX_DIMENSION];
+EXTERN int MultiRefineRegionGeometry[MAX_STATIC_REGIONS];
+EXTERN FLOAT MultiRefineRegionCenter[MAX_STATIC_REGIONS][MAX_DIMENSION];
+EXTERN FLOAT MultiRefineRegionOrientation[MAX_STATIC_REGIONS][MAX_DIMENSION];
+EXTERN FLOAT MultiRefineRegionRadius[MAX_STATIC_REGIONS];
+EXTERN FLOAT MultiRefineRegionWidth[MAX_STATIC_REGIONS];
+EXTERN int MultiRefineRegionMaximumLevel[MAX_STATIC_REGIONS];
+EXTERN int MultiRefineRegionMinimumLevel[MAX_STATIC_REGIONS];
+EXTERN int MultiRefineRegionMaximumOuterLevel;
+EXTERN int MultiRefineRegionMinimumOuterLevel;
+EXTERN FLOAT MultiRefineRegionStaggeredRefinement[MAX_STATIC_REGIONS];
+
 /* Uniform gravity: on/off flag, direction, and strength. */
 
 EXTERN int UniformGravity, UniformGravityDirection;
@@ -247,6 +271,18 @@ EXTERN int PointSourceGravity;
 EXTERN FLOAT PointSourceGravityPosition[MAX_DIMENSION];
 EXTERN float PointSourceGravityConstant;
 EXTERN float PointSourceGravityCoreRadius;
+
+/* disk gravity */
+EXTERN int DiskGravity;
+EXTERN FLOAT DiskGravityPosition[MAX_DIMENSION],
+             DiskGravityAngularMomentum[MAX_DIMENSION];
+EXTERN float DiskGravityStellarDiskMass;
+EXTERN float DiskGravityStellarDiskScaleHeightR;
+EXTERN float DiskGravityStellarDiskScaleHeightz;
+EXTERN float DiskGravityStellarBulgeMass;
+EXTERN float DiskGravityStellarBulgeR;
+EXTERN float DiskGravityDarkMatterR;
+EXTERN float DiskGravityDarkMatterDensity;
 
 /* SelfGravity (TRUE or FALSE) */
 
@@ -292,6 +328,14 @@ EXTERN int ComputePotential;
 /* Flag to indicate output for gravitational potential field. */
 
 EXTERN int WritePotential;
+
+/* Parameter to control how particles in a subgrid are deposited in
+   the target grid.  Options are: 
+     CIC_DEPOSIT - cloud in cell using cloud size equal to target grid size
+     CIC_DEPOSIT_SMALL - CIC using cloud size equal to source grid size
+     NGP_DEPOSIT - nearest grid point */
+
+EXTERN int ParticleSubgridDepositMode;
 
 /* Maximum number of GreensFunctions that will be stored in any time.
    This number must be less than MAX_NUMBER_OF_GREENS_FUNCTIONS. */
@@ -343,6 +387,17 @@ EXTERN FLOAT   RandomForcingEdot;
 EXTERN FLOAT   RandomForcingMachNumber;  //#####
 EXTERN fpos_t  BaryonFileNamePosition;
 
+/* StochasticForcing variables */
+
+EXTERN forcing_type DrivenFlowProfile;
+EXTERN int DrivenFlowAlpha[MAX_DIMENSION];
+EXTERN int DrivenFlowSeed;
+EXTERN float DrivenFlowWeight;
+EXTERN float DrivenFlowBandWidth[MAX_DIMENSION];
+EXTERN float DrivenFlowAutoCorrl[MAX_DIMENSION];
+EXTERN float DrivenFlowVelocity[MAX_DIMENSION];
+EXTERN float DrivenFlowDomainLength[MAX_DIMENSION];
+
 /* Multi-species rate equation flag and associated data. */
 
 EXTERN int MultiSpecies;
@@ -359,6 +414,28 @@ EXTERN int GloverOpticalDepth; // 0: opticaly thin, 1: single-cell
 /* Multi-element metallicity field flag and count. */
 
 EXTERN int MultiMetals;
+
+/* Cosmic Ray Model
+ * 0: Off - default
+ * 1: On, (two fluid model)
+ */
+EXTERN int CRModel;
+/* Cosmic Ray Diffusion
+ * 0: Off - default
+ * 1: On, CRkappa is constant across grid
+ */
+EXTERN int CRDiffusion;
+/* Cosmic Ray Feedback
+ *    0.0 -- No CR feedback
+ *    1.0 -- All feedback into CR field
+ */
+EXTERN float CRFeedback;
+EXTERN float CRkappa;
+EXTERN float CRCourantSafetyNumber;
+EXTERN float CRdensFloor;
+EXTERN float CRmaxSoundSpeed;
+EXTERN float CRgamma;
+EXTERN float CosmologySimulationUniformCR; // FIXME
 
 /* Shock Finding Method
  * 0: Off - default
@@ -434,6 +511,7 @@ EXTERN int   StaticRefineRegionLevel[MAX_STATIC_REGIONS];
 /* Evolving refinement region. */
 EXTERN char *RefineRegionFile;
 EXTERN int RefineRegionTimeType; // 0=time 1=redshift
+EXTERN int EvolveRefineRegionNtimes;
 EXTERN FLOAT EvolveRefineRegionTime[MAX_REFINE_REGIONS]; // time bins
 EXTERN FLOAT EvolveRefineRegionLeftEdge[MAX_REFINE_REGIONS][3]; // left corners
 EXTERN FLOAT EvolveRefineRegionRightEdge[MAX_REFINE_REGIONS][3]; // right corners
@@ -459,6 +537,7 @@ EXTERN int First_Pass;
 EXTERN int UnigridTranspose;
 EXTERN int NumberOfRootGridTilesPerDimensionPerProcessor;
 EXTERN int CosmologySimulationNumberOfInitialGrids;
+EXTERN int UserDefinedRootGridLayout[3];
 
 /* Parameters that control density dex output */
 
@@ -467,6 +546,10 @@ EXTERN float StartDensityOutputs;
 EXTERN float CurrentDensityOutput;
 EXTERN float CurrentMaximumDensity;
 EXTERN float IncrementDensityOutput;
+EXTERN float StopFirstTimeAtDensity;
+EXTERN float StopFirstTimeAtMetalEnrichedDensity;
+EXTERN float CurrentMaximumMetalEnrichedDensity;
+EXTERN float EnrichedMetalFraction;
 
 /* Parameter(s) for embedded python execution */
 EXTERN int PythonTopGridSkip;
@@ -539,11 +622,27 @@ EXTERN int   MustRefineParticlesRefineToLevelAutoAdjust;
 
 EXTERN float MustRefineParticlesMinimumMass;
 
+/* For CellFlaggingMethod = 8,
+   region in which particles are flagged as MustRefine particles */
+
+EXTERN FLOAT MustRefineParticlesLeftEdge[MAX_DIMENSION], 
+             MustRefineParticlesRightEdge[MAX_DIMENSION];
+
+/* For CellFlaggingMethod = 8,
+   binary switch that allows must refine particles to be created by the 
+   routines MustRefineParticlesFlagFromList or MustRefineParticlesFlagInRegion*/
+EXTERN int MustRefineParticlesCreateParticles;
+
 /* For CellFlaggingMethod = 9,   
    The minimum shear (roughly, dv accross two zones) required for 
    refinement.    */
 
 EXTERN float MinimumShearForRefinement;
+
+/* For CellFlaggingMethod = 9,   
+   Whether to use the old method for calculating shear refinement.    */
+
+EXTERN int OldShearMethod;
 
 /* For CellFlaggingMethod = 11,
    The number of cells by which the Resistive length abs(B)/abs(curl(B)) 
@@ -558,6 +657,12 @@ EXTERN float ShockwaveRefinementMinMach;
 EXTERN float ShockwaveRefinementMinVelocity;
 EXTERN int ShockwaveRefinementMaxLevel;
 
+/* For CellFlaggingMethod = 15,   
+   Minimum second derivative required for refinement.    */
+EXTERN float MinimumSecondDerivativeForRefinement[MAX_FLAGGING_METHODS];
+EXTERN int SecondDerivativeFlaggingFields[MAX_FLAGGING_METHODS];
+EXTERN float SecondDerivativeEpsilon;
+
 /* Noh problem switch: Upper-Right quadrant or full domain */
 
 EXTERN int NohProblemFullBox;
@@ -571,6 +676,7 @@ EXTERN int   ComovingCoordinates;
 
 EXTERN int   StarParticleCreation;
 EXTERN int   StarParticleFeedback;
+EXTERN int   StarParticleRadiativeFeedback;
 EXTERN int   NumberOfParticleAttributes;
 EXTERN int   AddParticleAttributes;
 EXTERN int   BigStarFormation;
@@ -600,6 +706,7 @@ EXTERN char  *CubeDumps[MAX_CUBE_DUMPS];
 /* Parameters governing whether tracer particles are on or off. */
 
 EXTERN int   TracerParticleOn;
+EXTERN int   TracerParticleOutputVelocity;
 EXTERN FLOAT TracerParticleCreationSpacing;
 EXTERN FLOAT TracerParticleCreationLeftEdge[MAX_DIMENSION];
 EXTERN FLOAT TracerParticleCreationRightEdge[MAX_DIMENSION];
@@ -856,11 +963,16 @@ EXTERN RadiativeTransferSpectrumTableType RadiativeTransferSpectrumTable;
 #endif /* TRANSFER  */
 
 EXTERN int LevelCycleCount[MAX_DEPTH_OF_HIERARCHY];
+EXTERN int LevelSubCycleCount[MAX_DEPTH_OF_HIERARCHY];
+EXTERN float dtRebuildHierarchy[MAX_DEPTH_OF_HIERARCHY];
+EXTERN float TimeSinceRebuildHierarchy[MAX_DEPTH_OF_HIERARCHY];
 EXTERN float dtThisLevelSoFar[MAX_DEPTH_OF_HIERARCHY];
 EXTERN float dtThisLevel[MAX_DEPTH_OF_HIERARCHY];
 
 /* RebuildHierarchy on this level every N cycles. */
 EXTERN int RebuildHierarchyCycleSkip[MAX_DEPTH_OF_HIERARCHY];
+EXTERN int ConductionDynamicRebuildHierarchy;
+EXTERN int ConductionDynamicRebuildMinLevel;
 
 /* Coupled radiative transfer, cooling, and rate solver */
 EXTERN int RadiativeTransferCoupledRateSolver;
@@ -894,7 +1006,8 @@ EXTERN float VelocityGradient;
 EXTERN int ShearingBoundaryDirection;
 EXTERN int ShearingVelocityDirection;
 EXTERN int ShearingOtherDirection;
-EXTERN int useMHD;
+EXTERN int UseMHD;
+EXTERN int MaxVelocityIndex;
 EXTERN FLOAT TopGridDx[MAX_DIMENSION];
 EXTERN int ShearingBoxProblemType; // 0 = advecting sphere; 1 = shearing box; 2 = vortex wave ; 3 = stratified
 
@@ -909,6 +1022,7 @@ EXTERN int MoveParticlesBetweenSiblings;
 
 EXTERN int ParticleSplitterIterations;
 EXTERN float ParticleSplitterChildrenParticleSeparation;
+EXTERN int ParticleSplitterRandomSeed;
 
 /* Magnetic Field Resetter */
 
@@ -928,6 +1042,9 @@ EXTERN int OutputWhenJetsHaveNotEjected;
 EXTERN int VelAnyl;
 EXTERN int BAnyl;
 
+/* Write Out External Acceleration Field */
+EXTERN int WriteExternalAccel;
+
 /* Gas drag */
 EXTERN int UseGasDrag;
 EXTERN float GasDragCoefficient;
@@ -941,6 +1058,52 @@ EXTERN int AnisotropicConduction;  // TRUE OR FALSE
 EXTERN float IsotropicConductionSpitzerFraction;  // f_Spitzer
 EXTERN float AnisotropicConductionSpitzerFraction;  // f_Spitzer
 EXTERN float ConductionCourantSafetyNumber;
+EXTERN int SpeedOfLightTimeStepLimit; // TRUE OR FALSE
+
+/* SMBH Feedback in galaxy clusters*/
+EXTERN int ClusterSMBHFeedback;  // TRUE OR FALSE
+EXTERN float ClusterSMBHJetMdot;  // JetMdot in SolarMass/yr 
+EXTERN float ClusterSMBHJetVelocity;  // JetVelocity in km/s 
+EXTERN float ClusterSMBHJetRadius;  // JetRadius in cellwidth 
+EXTERN float ClusterSMBHJetLaunchOffset;  //in cellwidth
+EXTERN float ClusterSMBHStartTime;  // in codeunits, usually is InitialTime of restart 
+EXTERN float ClusterSMBHTramp;  // in Myr
+EXTERN float ClusterSMBHJetOpenAngleRadius;  // in cellwidth 
+EXTERN float ClusterSMBHFastJetRadius;  // FastJetRadius in cellwidth 
+EXTERN float ClusterSMBHFastJetVelocity;  // FastJetVelocity in km/s 
+EXTERN float ClusterSMBHJetEdot;  // Total feedback Edot in 10^44 ergs/s 
+EXTERN float ClusterSMBHKineticFraction;  // fraction of kinetic feedback (0-1)
+EXTERN float ClusterSMBHJetAngleTheta;  // from 0 to 1/2, in pi
+EXTERN float ClusterSMBHJetAnglePhi;  // from 0 to 2, in pi
+EXTERN float ClusterSMBHJetPrecessionPeriod;  //in Myr
+EXTERN int ClusterSMBHCalculateGasMass;  // TRUE OR FALSE
+EXTERN int ClusterSMBHFeedbackSwitch;  // TRUE OR FALSE
+EXTERN float ClusterSMBHEnoughColdGas;  // To turn jet on, in SolarMass 
+EXTERN float ClusterSMBHAccretionTime;  // Used only when CalculateGasMass=2
+EXTERN int ClusterSMBHJetDim;  // Jet dimension
+EXTERN float ClusterSMBHAccretionEpsilon;  // Edot=epsilon*Mdot(accreted/removed)*c^2
+
+EXTERN int MHDCTSlopeLimiter;
+EXTERN int MHDCTDualEnergyMethod;
+EXTERN int MHDCTPowellSource;
+EXTERN int MHDCTUseSpecificEnergy;
+EXTERN int WriteBoundary;
+EXTERN int WriteAcceleration;
+EXTERN int TracerParticlesAddToRestart;// forces addition of tracer particles to already initialized simulations
+EXTERN int MHD_ProjectThisFace[3]; //Used for determining face projection/communication needs for 
+                                   //face centered fields
+EXTERN float CT_AthenaDissipation;
+EXTERN int MHD_WriteElectric;
+EXTERN float tiny_pressure;
+EXTERN int MHD_CT_Method;
+EXTERN int MHD_ProjectB;// Should always be FALSE for the evoloution. May be used in initialization.
+EXTERN int MHD_ProjectE;// Should always be TRUE for the evoloution
+EXTERN int UseMHDCT;
+EXTERN int EquationOfState;
+EXTERN char *MHDLabel[3];
+EXTERN char *MHDUnits[3];
+EXTERN char *MHDeLabel[3];
+EXTERN char *MHDeUnits[3];
 
 /* For the database */
 EXTERN char *DatabaseLocation;
@@ -950,4 +1113,23 @@ EXTERN int CorrectParentBoundaryFlux;
 /* For EnzoTiming Behavior */
 EXTERN int TimingCycleSkip; // Frequency of timing data dumps.
 
+/* For the galaxy simulation boundary method */
+EXTERN int GalaxySimulationRPSWind;
+/* GalaxySimulationRPSWind
+ *   0 - OFF 
+ *   1 - Simple Shock w/ angle and delay 
+ *   2 - Lookup table of density and velocity
+ */
+EXTERN float GalaxySimulationRPSWindShockSpeed;
+EXTERN float GalaxySimulationRPSWindDelay;
+
+EXTERN float GalaxySimulationRPSWindDensity;
+EXTERN float GalaxySimulationRPSWindTotalEnergy;
+EXTERN float GalaxySimulationRPSWindVelocity[MAX_DIMENSION];
+EXTERN float GalaxySimulationRPSWindPressure;
+
+EXTERN float GalaxySimulationPreWindDensity;
+EXTERN float GalaxySimulationPreWindTotalEnergy; 
+EXTERN float GalaxySimulationPreWindVelocity[MAX_DIMENSION];
+ 
 #endif

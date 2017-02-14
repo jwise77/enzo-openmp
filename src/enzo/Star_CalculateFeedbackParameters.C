@@ -37,7 +37,7 @@ void Star::CalculateFeedbackParameters(float &Radius,
 				       FLOAT Time, bool &SphereCheck)
 {
 
-  // Parameters for the Stroemgen sphere in Whalen et al. (2004)
+  // Parameters for the Stroemgren sphere in Whalen et al. (2004)
   const float	BirthRadius	  = 50;		// pc
   const float	WhalenTemperature = 20000;	// K
   const float	WhalenDensity	  = 1;	        // cm^-3
@@ -50,11 +50,16 @@ void Star::CalculateFeedbackParameters(float &Radius,
   const float PISNLowerMass = 140, PISNUpperMass = 260.01;
 
   // From Nomoto et al. (2006)
-  const float HypernovaMass[] = {19.99, 25, 30, 35, 40.01};  // Msun
   const float HypernovaMetals[] = {3.36, 3.53, 5.48, 7.03, 8.59}; // Msun
-  const float HypernovaEnergy[] = {10, 10, 20, 25, 30};  // 1e51 erg
+  const float HypernovaEnergy[] = {10, 10, 20, 25, 30}; // 1e51 erg 
+  const float CoreCollapseMetals[] = {3.63, 4.41, 6.71, 8.95, 11.19}; // Msun
+  const float CoreCollapseEnergy[] = {1, 1, 1, 1, 1}; // 1e51 erg
 
-  const int max_radius = 5;  // Don't exceed max_radius*PopIIISNRadius
+  const float SNExplosionMass[] = {19.99, 25, 30, 35, 40.01};  // Msun
+  const float *SNExplosionMetals = (PopIIIUseHypernova ==TRUE) ? 
+    HypernovaMetals : CoreCollapseMetals;
+  const float *SNExplosionEnergy = (PopIIIUseHypernova ==TRUE) ? 
+    HypernovaEnergy : CoreCollapseEnergy;
 
   float StarLevelCellWidth, tdyn, frac;
   double EjectaVolume, SNEnergy, HeliumCoreMass, Delta_SF, MetalMass;
@@ -78,8 +83,7 @@ void Star::CalculateFeedbackParameters(float &Radius,
   case SUPERNOVA:  // Single thermal bubble of SN feedback
     Radius = PopIIISupernovaRadius * pc / LengthUnits;
     Radius = max(Radius, 3.5*StarLevelCellWidth);
-    Radius = min(Radius, max_radius * PopIIISupernovaRadius*pc/LengthUnits);
-    EjectaVolume = 4.0/3.0 * 3.14159 * pow(PopIIISupernovaRadius*pc, 3);
+    EjectaVolume = 4.0/3.0 * 3.14159 * pow(Radius*LengthUnits, 3);
     EjectaDensity = Mass * Msun / EjectaVolume / DensityUnits;
 
     // pair-instability SNe
@@ -96,13 +100,13 @@ void Star::CalculateFeedbackParameters(float &Radius,
 	SNEnergy = 1e51;
 	MetalMass = 0.1077 + 0.3383 * (this->Mass - 11.0);  // Fit to Nomoto+06
       } else { // Hypernova (should we add the "failed" SNe?)
-	bin = search_lower_bound((float*)HypernovaMass, this->Mass, 0, 5, 5);
-	frac = (HypernovaMass[bin+1] - this->Mass) / 
-	  (HypernovaMass[bin+1] - HypernovaMass[bin]);
-	SNEnergy = 1e51 * (HypernovaEnergy[bin] + 
-			   frac * (HypernovaEnergy[bin+1] - HypernovaEnergy[bin]));
-	MetalMass = (HypernovaMetals[bin] + 
-		     frac * (HypernovaMetals[bin+1] - HypernovaMetals[bin]));
+	bin = search_lower_bound((float*)SNExplosionMass, this->Mass, 0, 5, 5);
+	frac = (SNExplosionMass[bin+1] - this->Mass) / 
+	  (SNExplosionMass[bin+1] - SNExplosionMass[bin]);
+	SNEnergy = 1e51 * (SNExplosionEnergy[bin] + 
+			   frac * (SNExplosionEnergy[bin+1] - SNExplosionEnergy[bin]));
+	MetalMass = (SNExplosionMetals[bin] + 
+		     frac * (SNExplosionMetals[bin+1] - SNExplosionMetals[bin]));
       }
       EjectaMetalDensity = MetalMass * Msun / EjectaVolume / DensityUnits;
     }

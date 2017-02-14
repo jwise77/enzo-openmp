@@ -261,7 +261,7 @@ int grid::ProjectToPlane2(FLOAT ProjectedFieldLeftEdge[],
     first_field = temperature;
     second_field = BaryonField[0];
     ProjType = 4;
-    ConversionFactor = DensityConversion;//*DensityConversion;
+    ConversionFactor = DensityConversion;
 
     FORTRAN_NAME(projplane)(first_field, second_field,
 			    BaryonField[NumberOfBaryonFields], &One,
@@ -281,13 +281,10 @@ int grid::ProjectToPlane2(FLOAT ProjectedFieldLeftEdge[],
 
   if (NumberOfBaryonFields > 0) {
 
-//    for (i = 0; i < size; i++)
-//      temp_field[i] = BaryonField[0][i] * BaryonField[0][i];
-    
     first_field = BaryonField[0];
     second_field = BaryonField[0];
     ProjType = 4;
-    ConversionFactor = DensityConversion;//*DensityConversion;
+    ConversionFactor = DensityConversion;
 
     FORTRAN_NAME(projplane)(first_field, second_field,
                              BaryonField[NumberOfBaryonFields], &One,
@@ -362,7 +359,7 @@ int grid::ProjectToPlane2(FLOAT ProjectedFieldLeftEdge[],
     first_field = temp_field;
     second_field = BaryonField[0];
     ProjType = 4;
-    ConversionFactor = DensityConversion;//*DensityConversion;
+    ConversionFactor = DensityConversion;
 
     FORTRAN_NAME(projplane)(first_field, second_field,
                              BaryonField[NumberOfBaryonFields], &One,
@@ -387,7 +384,7 @@ int grid::ProjectToPlane2(FLOAT ProjectedFieldLeftEdge[],
     first_field = temp_field;
     second_field = BaryonField[0];
     ProjType = 4;
-    ConversionFactor = DensityConversion;//*DensityConversion;
+    ConversionFactor = DensityConversion;
 
     FORTRAN_NAME(projplane)(first_field, second_field,
                              BaryonField[NumberOfBaryonFields], &One,

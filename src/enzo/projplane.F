@@ -159,7 +159,7 @@ c
                      if (ifield .eq. 3) plane(i,j) = plane(i,j) + 
      &                    sample1**1.5_RKIND*sample2**2 *weight1
                      if (ifield .eq. 4) plane(i,j) = plane(i,j) + 
-     &                                sample1*sample2 * weight1
+     &                    sample1*sample2 * weight1
 c
                   endif
 c     
@@ -213,7 +213,7 @@ c
                      if (ifield .eq. 3) plane(i,j) = plane(i,j) + 
      &                    sample1**1.5_RKIND*sample2**2 *weight1
                      if (ifield .eq. 4) plane(i,j) = plane(i,j) + 
-     &                                sample1*sample2 * weight1
+     &                    sample1*sample2 * weight1
 c
                   endif
 c     
@@ -267,7 +267,7 @@ c
                      if (ifield .eq. 3) plane(i,j) = plane(i,j) + 
      &                    sample1**1.5_RKIND*sample2**2 *weight1
                      if (ifield .eq. 4) plane(i,j) = plane(i,j) + 
-     &                                sample1*sample2 * weight1
+     &                    sample1*sample2 * weight1
 c
                   endif
 c     

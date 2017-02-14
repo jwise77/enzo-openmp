@@ -121,18 +121,32 @@ int grid::FindPhotonNewGrid(int cindex, FLOAT *r, FLOAT *u, int *g,
       } // ENDELSE !InsideDomain
     } // ENDELSE
 
-    if (DEBUG) 
-      fprintf(stdout, "Walk: left grid: sent photon to grid %d (DeltaL = %d)\n", 
-	      MoveToGrid->ID, DeltaLevel);
-
   } // ENDELSE (subgrid)
 
   /* Error check */
 
+  if (DEBUG && MoveToGrid != NULL) {
+    fprintf(stdout, "Walk: left grid: sent photon to grid %d [dx=%g] (DeltaL = %d)\n", 
+	    MoveToGrid->ID, MoveToGrid->CellWidth[0][0], DeltaLevel);
+  }
+
+
 #ifdef UNUSED
   if (MoveToGrid != NULL && InsideDomain)
-    if (MoveToGrid->PointInGridNB(r) == FALSE)
+    if (MoveToGrid->PointInGridNB(r) == FALSE) {
+      printf("Grid %d, MoveGrid %d\n", this->ID, MoveToGrid->ID);
+      printf("Cell = %6d %6d %6d\n", g[0], g[1], g[2]);
+      printf("Position = %15.12f %15.12f %15.12f\n", r[0], r[1], r[2]);
+      printf("Source = %15.12f %15.12f %15.12f\n", (PP)->SourcePosition[0],
+	     (PP)->SourcePosition[1], (PP)->SourcePosition[2]);
+      printf("Direction = %15.12f %15.12f %15.12f\n", u[0], u[1], u[2]);
+      (PP)->PrintInfo();
+      printf("GridLeft = %15.12f %15.12f %15.12f\n", GridLeftEdge[0], GridLeftEdge[1], GridLeftEdge[2]);
+      printf("GridRight = %15.12f %15.12f %15.12f\n", GridRightEdge[0], GridRightEdge[1], GridRightEdge[2]);
+      printf("MoveGridLeft = %15.12f %15.12f %15.12f\n", MoveToGrid->GridLeftEdge[0], MoveToGrid->GridLeftEdge[1], MoveToGrid->GridLeftEdge[2]);
+      printf("MoveGridRight = %15.12f %15.12f %15.12f\n", MoveToGrid->GridRightEdge[0], MoveToGrid->GridRightEdge[1], MoveToGrid->GridRightEdge[2]);
       ENZO_FAIL("Photon not contained in MoveToGrid!");
+    }
 #endif
 
   return SUCCESS;

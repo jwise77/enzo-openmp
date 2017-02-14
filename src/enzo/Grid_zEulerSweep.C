@@ -274,6 +274,18 @@ int grid::zEulerSweep(int j, int NumberOfSubgrids, fluxes *SubgridFluxes[],
 			    &NumberOfColours, colslice, colls, colrs, colf);
     break;
 
+  default:
+    for (int index = 0; index < size; index++) {
+      df[index] = 0;
+      ef[index] = 0;
+      uf[index] = 0;
+      vf[index] = 0;
+      wf[index] = 0;
+      gef[index] = 0;
+      ges[index] = 0;
+    }
+    break;
+
   } // ENDCASE
 
   /* Compute Eulerian fluxes and update zone-centered quantities */
@@ -285,7 +297,7 @@ int grid::zEulerSweep(int j, int NumberOfSubgrids, fluxes *SubgridFluxes[],
 		      &PPMDiffusionParameter, &GravityOn, &DualEnergyFormalism, 
 		      &DualEnergyFormalismEta1, &DualEnergyFormalismEta2,
 		      df, ef, uf, vf, wf, gef, ges,
-		      &NumberOfColours, colslice, colf);
+		      &NumberOfColours, colslice, colf, &SmallRho);
 
   /* If necessary, recompute the pressure to correctly set ge and e */
 

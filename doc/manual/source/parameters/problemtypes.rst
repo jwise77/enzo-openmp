@@ -28,6 +28,7 @@ Problem Type Description and Parameter List
 10 	     :ref:`rotatingcylinder_param`
 11 	     :ref:`radiatingshock_param`
 12 	     :ref:`freeexpansion_param`
+14           :ref:`rotatingsphere_param`
 20 	     :ref:`zeldovichpancake_param`
 21 	     :ref:`pressurelesscollapse_param`
 22 	     :ref:`adiabaticexpansion_param`
@@ -46,6 +47,7 @@ Problem Type Description and Parameter List
 40 	     :ref:`supernovarestart_param`
 50 	     :ref:`photontest_param`
 51	     Photon Test Restart
+59       :ref:`stochastic_forcing_param`
 60 	     :ref:`turbulence_param` 
 61 	     :ref:`protostellar_param` 
 62 	     :ref:`coolingtest_param`
@@ -59,7 +61,7 @@ Problem Type Description and Parameter List
 102          :ref:`1dcollapse_param`
 106          :ref:`mhdhydro_param`
 107          :ref:`putsink_param`
-108          Cluster Cooling Flow 
+108          :ref:`clustercoolingflow_param` 
 200          :ref:`mhd1d_param`
 201          :ref:`mhd2d_param`
 202          :ref:`mhd3d_param`
@@ -69,6 +71,7 @@ Problem Type Description and Parameter List
 208          :ref:`agndisk_param`
 209	     MHD 1D Waves
 210	     MHD Decaying Random Magnetic Fields
+250	     :ref:`cr_shocktube_param`
 300          :ref:`poissonsolver_param`
 400          :ref:`rhdtest1_param`
 401          :ref:`rhdtest2_param`
@@ -96,6 +99,10 @@ Shock Tube (1: unigrid and AMR)
     shock waves, contact discontinuities, and rarefaction waves in a
     variety of situations (Toro 1999, p. 129).
 
+    It is also possible to set up a second discontinuity, creating three
+    initial regions, rather than the two regions of the original Sod Shock
+    Tube.
+
     ::
 
               Test  LeftDensity LeftVelocity LeftPressure RightDensity RightVelocity RightPressure
@@ -106,19 +113,34 @@ Shock Tube (1: unigrid and AMR)
               1.5   5.99924     19.5975      460.894      5.99242      -6.19633      46.0950
 
 
-``ShockTubeBoundary`` (external)
-    Discontinuity position. Default: 0.5
-``ShockTubeDirection`` (external)
-    Discontinuity orientation. Type: integer. Default: 0 (shock(s) will
-    propagate in x-direction)
-``ShockTubeLeftDensity``, ``ShockTubeRightDensity`` (external)
-    The initial gas density to the left and to the right of the
-    discontinuity. Default: 1.0 and 0.125, respectively
-``ShockTubeLeftVelocity``, ``ShockTubeRightVelocity`` (external)
-    The same as above but for the velocity component in
-    ``ShockTubeDirection``. Default: 0.0, 0.0
-``ShockTubeLeftPressure``, ``ShockTubeRightPressure`` (external)
-    The same as above but for pressure. Default: 1.0, 0.1
+``HydroShockTubesInitialDiscontinuity`` (external)
+    The position of the initial discontinuity. Default: 0.5
+``HydroShockTubesSecondDiscontinuity`` (external)
+    The position of the second discontinuity, if a second discontinuity is 
+    desired. Default: FLOAT_UNDEFINED, i.e. no second discontinuity.
+``HydroShockTubesLeftDensity``, ``HydroShockTubesRightDensity``, ``HydroShockTubesCenterDensity`` (external)
+    The initial gas density to the left and right of the discontinuity,
+    and between the discontinuities if a second discontinuity has been 
+    specified with HydroShockTubesSecondDiscontinuity.  Default: 1.0 for each
+    value.
+``HydroShockTubesLeftPressure``, ``HydroShockTubesRightPressure``, ``HydroShockTubesCenterPressure`` (external)
+    The initial gas density to the left and right of the discontinuity,
+    and between the discontinuities if a second discontinuity has been
+    specified with HydroShockTubesSecondDiscontinuity.  Default: 1.0 for
+    each of the left, right, and center regions.
+
+``HydroShockTubesLeftVelocityX``, ``HydroShockTubesLeftVelocityY``, ``HydroShockTubesLeftVelocityZ`` (external)
+    The initial gas velocity, in the x-, y-, and z-directions to the left of 
+    the discontinuity.  Default: 0.0 for all directions.
+
+``HydroShockTubesRightVelocityX``, ``HydroShockTubesRightVelocityY``, ``HydroShockTubesRightVelocityZ`` (external)
+    The initial gas velocity, in the x-, y-, and z-directions to the right of 
+    the discontinuity.  Default: 0.0 for all directions.
+
+``HydroShockTubesCenterVelocityX``, ``HydroShockTubesCenterVelocityY``, ``HydroShockTubesCenterVelocityZ`` (external)
+    The initial gas velocity, in the x-, y-, and z-directions between the 
+    discontinuities, used if a second discontinuity has been specified with 
+    HydroShockTubesSecondDiscontinuity. Default: 1.0 for all directions.
 
 .. _wavepool_param:
 
@@ -285,15 +307,50 @@ Sedov Blast (7)
 Kelvin-Helmholtz Instability (8)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    This problem sets up a 2D box with periodic boundary conditions containing
+    two fluids (inner fluid and outer fluid).  The inner fluid has a positive
+    velocity and the outer fluid has a negative velocity with a difference of
+    ``KHVelocityJump``.  The two fluids typically have different densities.
+    The result is the build up of KH instabilities along the interface between
+    the two fluids.
+
+    Setting ``KHRamp`` to 0, creates the standard KH test problem
+    where there is a discontinuous jump between the two fluids in
+    x-velocity and density.  Random perturbations in y-velocity are the seeds 
+    to the KH instability resulting in growth of multiple modes of the KHI.
+
+    Setting ``KHRamp`` to 1 modifies the ICs so that there is a smooth
+    ramp connecting the two fluids in x-velocity and density of width 
+    ``KHRampWidth``.  A sinusoidal perturbation in y-velocity is the seed
+    to the KH instability resulting in only growth of k=2 modes.  
+    These results converge in behavior as resolution is increased, whereas 
+    the standard ICs do not.  The ramped ICs are based on Robertson, Kravtsov, 
+    Gnedin, Abel & Rudd 2010, but that work has a typo in the ramp equation, 
+    and this implementation matches Robertson's actual ICs.  
 
 ``KHInnerDensity``, ``KHOuterDensity`` (external)
     Initial density. Default: 2.0 (inner) and 1.0 (outer)
 ``KHInnerPressure``, ``KHOuterPressure`` (external)
     Initial pressure. Default: 2.5 (for both)
+``KHBulkVelocity`` (external)
+    The bulk velocity of both fluids relative to the grid.  Default: 0.0
 ``KHVelocityJump`` (external)
-    Default: 1.0
+    The difference in velocity between the outer fluid and the inner fluid.
+    Inner fluid will have half this value and move to the right (positive),
+    whereas outer fluid will have have this value and move to the left 
+    (negative).  Total fluid velocities will combine this jump with 
+    KHBulkVelocity.  Default: 1.0
 ``KHPerturbationAmplitude`` (external)
-    Default: 0.01
+    Default: 0.1
+``KHRamp`` (external)
+    Whether to use ramped ICs or not.  Default: 1
+``KHRampWidth`` (external)
+    The width in y-space of the transition ramp.  Default: 0.05
+``KHRandomSeed`` (external)
+    The seed for the Mersennes random number generator.  This is only
+    used in the case of the KHRamp=0 ICs.  By using the same seed
+    from one run to the next, one can reproduce previous behavior with
+    identical parameter files.  Default: 123456789
 
 
 .. _noh_param:
@@ -446,6 +503,71 @@ should turn into a Sedov-Taylor blast wave.
 ``FreeExpansionSubgridRight`` (external)
     Rightmost edge of the region to set the initial refinement.
     Default: 0
+
+.. _rotatingsphere_param:
+
+Rotating Sphere (14)
+~~~~~~~~~~~~~~~~~~~~
+
+A test originally created to study star formation. Sets up a rotating,
+turbulent sphere of gas within an NFW halo. For details of the setup
+process, see Meece (2014).
+
+
+``RotatingSphereNFWMass`` (external)
+    The mass of the NFW halo within R200 in solar masses.
+    Default: 1.0e+7 M_sun
+``RotatingSphereNFWConcentration`` (external)
+    The NFW Concentration parameter, defined as virial radius over scale radius (R200/Rs).
+    Default: 2.0
+``RotatingSphereCoreRadius`` (external)
+    Radius of the core region in code units. The core radius is used as the break in the
+    density profile. Gas within the core is set up in HSE, while outside the core temperature
+    increases adiabatically with density.
+    Default: 16 pc
+``RotatingSphereCentralDensity`` (external)
+    This is the scaling density for the density profile in code units. The density profile is defined as
+    rho(r) = rho_center * (r/Rc)^-alpha * (1+r/Rc)^(alpha-beta) where rho_center is this
+    parameters, Rc is the core radius, alpha is the core exponent (below) and beta is the
+    outer exponent (also below).
+    Default: 1
+``RotatingSphereCoreDensityExponent`` (external)
+    The density scaling exponent in the core. Within the core, density approximately goes as
+    (r/Rc)^-alpha, were alpha is this parameter.
+    Default: 0.1
+``RotatingSphereOuterDensityExponent`` (external)
+    The density scaling exponent in the outer regions. Outside of the core, density
+    approximately goes as (r/Rc)^-beta, were alpha is this parameter.
+    Default: 2.5
+``RotatingSphereExteriorTemperature`` (external)
+    This is the temperature in K of gas outside the sphere, defined as the region where
+    density would drop below the critical density.
+    Default: 200.0
+``RotatingSphereSpinParameter`` (external)
+    The Baryonic spin parameter, defined as Lambda = (J * abs(E)^(1/2)) / (G M^(5/2)),
+    where J is the total (gas) angular momentum, E is the binding energy of the gas due
+    to the gas and dark matter, M is the gas mas, and G is the gravitational constant.
+    All quantities are defined relative to the edge of the sphere defined above.
+    Default: 0.05
+``RotatingSphereAngularMomentumExponent`` (external)
+    This is the power law index of the scaling relation for specific angular momentum
+    as a function of mass enclosed. l scales as (M/M_T)^chi where chi is this parameter.
+    Default: 0.9
+``RotatingSphereUseTurbulence`` (external)
+    0 = No Turbulence, 1 = Use Turbulence. If using turbulence, you need a file called
+    turbulence.in, which can be generated using the file turbulence_generator.py in the
+    RotatingSphere problem in the run directory.
+    Default: 0
+``RotatingSphereTurbulenceRMS`` (external)
+    The RMS velocity of the turbulence is normalized to some fraction of the virial sound
+    speed of the halo, as determined from the virial temperature of the halo. This parameter
+    is that fraction. If RotatingSphereUseTurbulence == 0, this parameters is ignored.
+    Default: 0.01
+``RotatingSphereRedshift`` (external)
+    The redshift is mainly used to determine the critical density of the universe. The problem
+    generator assumes a cosmology with Omega_L=0.7, Omega_M = 0.3, and H0 = 70 km/s/mpc. Small
+    variations in cosmology should not have a large effect on the properties of the sphere.
+    Default: 20.0
 
 .. _zeldovichpancake_param:
 
@@ -622,6 +744,24 @@ Collapse Test (27)
 
 ``CollapseTestInitialTemperature`` (external)
     Initial gas temperature. Default: 1000 K. Units: degrees Kelvin
+``CollapseTestInitialFractionHII`` (external)
+    Initial HII fraction in the domain except for the spheres.
+    Default: 1.2e-5
+``CollapseTestInitialFractionHeII`` (external)
+    Initial HeII fraction in the domain except for the spheres.
+    Default: 1e-14
+``CollapseTestInitialFractionHeIII`` (external)
+    Initial HeIII fraction in the domain except for the spheres.
+    Default: 1e-17
+``CollapseTestInitialFractionHM`` (external)
+    Initial H- fraction in the domain except for the spheres.
+    Default: 2e-9
+``CollapseTestInitialFractionH2I`` (external)
+    Initial H2I fraction in the domain except for the spheres.
+    Default: 2e-20
+``CollapseTestInitialFractionH2II`` (external)
+    Initial H2II fraction in the domain except for the spheres.
+    Default: 3e-14
 ``CollapseTestNumberOfSpheres`` (external)
     Number of spheres to collapse; must be <= ``MAX_SPHERES=10`` (see
     ``Grid.h`` for definition). Default: 1
@@ -684,6 +824,27 @@ Collapse Test (27)
     ``CollapseTestSphereAng2`` are set, the rotational axis linearly
     changes with radius between ``CollapseTestSphereAng1`` and
     ``CollapseTestSphereAng2``.  Units in radians. Default: 0.
+``CollapseTestSphereConstantPressure`` (external)
+    Constant pressure inside the sphere that is equal to the pressure
+    at the outer radius.  Default: 0
+``CollapseTestSphereSmoothSurface`` (external)
+    The density interface between the ambient and sphere medium is
+    smoothed with a hyperbolic tangent.  Default: 0
+``CollapseTestSmoothRadius`` (external)
+    The outer radius of the smoothed interface.  This parameter is in
+    units of the sphere radius.  Default: 1.2
+``CollapseTestSphereHIIFraction`` (external)
+    Initial HII fraction of the sphere.  Default: 1.2e-5
+``CollapseTestSphereHeIIFraction`` (external)
+    Initial HeII fraction of the sphere.  Default: 1e-14
+``CollapseTestSphereHeIIIFraction`` (external)
+    Initial HeIII fraction of the sphere.  Default: 1e-17
+``CollapseTestSphereHMFraction`` (external)
+    Initial H- fraction of the sphere.  Default: 2e-9
+``CollapseTestSphereH2IFraction`` (external)
+    Initial H2I fraction of the sphere.  Default: 2e-20
+``CollapseTestSphereH2IIFraction`` (external)
+    Initial H2II fraction of the sphere.  Default: 3e-14
 ``CollapseTestSphereInitialLevel`` (external)
     Failed experiment to try to force refinement to a specified level.
     Not working. Default: 0.
@@ -834,7 +995,7 @@ Cosmology Simulation (30)
 ``CosmologySimulationOmegaCDMNow`` (external)
     This is the contribution of CDM to the energy density at the
     current epoch (z=0), relative to the value required to marginally
-    close the universe. Typical value 0.94. Default: 0.0 (no dark
+    close the universe. Typical value 0.24. Default: 0.0 (no dark
     matter)
 ``CosmologySimulationManuallySetParticleMassRatio`` (external)
     This binary flag (0 - off, 1 - on) allows the user to manually set
@@ -912,6 +1073,49 @@ Isolated Galaxy Evolution (31)
     Unit vector that defines the angular momentum vector of the galaxy
     (in other words, this and the center position define the plane of
     the galaxy). This _MUST_ be set! Default: (0.0, 0.0, 0.0)
+``GalaxySimulationRPSWind`` (external)
+    This flag turns on the ram pressure stripped (RPS) wind in the
+    GalaxySimulation problem and sets the mode.  0 = off, 1 = on with
+    simple constant wind values, 2 = on with RPS values set from a
+    file with the name ICMinflow_data.in.  For the file input case,
+    the file should consist of a set of lines with each line
+    specifying a 6 columns consisting of time, wind density, wind
+    temperature, wind x/y/z velocity.  All units in the file are
+    assumed to be CGS and wind values are applied at the time
+    indicated to the corner of the box, with linear interpolation
+    between key frames.  See Salem et al. (2015) for a worked example.
+    Default: 0
+``GalaxySimulationRPSWindShockSpeed`` (external)
+    This is speed of the RPS driven shock (which differs from the
+    wind velocity), to be used to determine where and when to apply
+    the appropriate wind boundary condition on the boundary.  Code units.
+    Default: 0.0
+``GalaxySimulationRPSWindDelay`` (external)
+    This is a delay (in code units) for the RPS wind to be applied
+    (for example to give time for the galaxy to relax).
+    Default: 0.0
+``GalaxySimulationRPSWindDensity`` (external)
+    For case 1, this is the density of the RPS wind, in code units.
+    Default: 1.0
+``GalaxySimulationRPSWindtotalEnergy`` (external)
+    For case 1, this is the total energy of the RPS wind, in code units.
+    Default: 1.0
+``GalaxySimulationRPSWindPressure`` (external)
+    For case 1, this is the pressutre of the RPS wind (unused).
+    Default: 1.0
+``GalaxySimulationRPSWindVelocity`` (external)
+    For case 1, This is the wind velocity (code units)
+    Default: 0 0 0
+``GalaxySimulationRPSWindPreWindDensity`` (external)
+    This is the density applied to the boundary before the wind arrives.
+    Default: 1.0
+``GalaxySimulationRPSWindPreWindTotalEnergy`` (external)
+    This is the total energy applied to the boundary before the wind arrives.
+    Default: 1.0
+``GalaxySimulationRPSWindPreWindVelocity`` (external)
+    This is the velocity vector applied to the boundary before the
+    wind arrives.
+    Default:
 
 .. _shearingbox_param:
 
@@ -1022,6 +1226,66 @@ Photon Test (50)
     Sets the initial ionized fraction of H2. Default: 3e-14
 ``PhotonTestOmegaBaryonNow`` (obsolete)
     Default: 0.05.
+``PhotonTestDensityFilename`` (external)
+    Filename of an external density field in HDF5 format.  The file
+    should only have one dataset. Default: (undefined)
+``PhotonTestHIIFractionFilename`` (external)
+    Filename of an external HII fraction field in its own HDF5 format.
+    The file should only have one dataset.  Default: (undefined)
+``PhotonTestHeIIFractionFilename`` (external)
+    Filename of an external HeII fraction field in its own HDF5 format.
+    The file should only have one dataset.  Default: (undefined)
+``PhotonTestHeIIIFractionFilename`` (external)
+    Filename of an external HeIII fraction field in its own HDF5 format.
+    The file should only have one dataset.  Default: (undefined)
+``PhotonTestTemperatureFilename`` (external)
+    Filename of an external temperature field in its own HDF5 format.
+    The file should only have one dataset.  Default: (undefined)
+
+.. _stochastic_forcing_param:
+
+Turbulence Simulation with Stochastic Forcing (59)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Typical quasi-isothermal "turbulence-in-a-box" problem with non-static driving field.
+    For details on stochastic forcing, see Schmidt et al. 2009 A&A 494, 127-145 
+    http://dx.doi.org/10.1051/0004-6361:200809967
+
+    3D simulations with MUSCL hydro and MHD solver are tested.
+    PPM, ZEUS and MHDCT unsupported at this time.
+
+    Remember that in addition to the problem specific parameters below 
+    UseDrivingField = 1 has to be turned on!
+
+
+``DrivenFlowProfile`` (external)
+    Shape of forcing power spectrum (1: delta peak, 2: band, 3: parabolic window).
+
+``DrivenFlowAlpha`` (external)
+    Ratio of domain length to integral length for each dimension (L = X/alpha).
+
+``DrivenFlowBandWidth`` (external)
+    Determines band width of the forcing spectrum relative to alpha (maximal value = 1).
+
+``DrivenFlowMach`` (external)
+    Characteristic velocity scale for each dimension (charcteristic force per unit mass F = V*V/L).
+
+``DrivenFlowAutoCorrl`` (external)
+    Determines autocorrelation time of the stochastic force in units of the integral time scale T = L/V.
+
+``DrivenFlowWeight`` (external)
+    Determines weight of solenoidal relative to dilatational modes (1 = purely solenoidal, 0 = purely dilatational).
+
+``DrivenFlowSeed`` (external)
+    Seed of random number generator.
+
+``DrivenFlowDensity`` (external)
+    Initial uniform density.
+
+``DrivenFlowPressure`` (external)
+    Initial uniform pressure.
+
+``DrivenFlowMagField`` (external)
+    Initial uniform magnetic field (x-direction)
 
 .. _turbulence_param:
 
@@ -1031,27 +1295,43 @@ Turbulence Simulation (60)
     Quasi-isothermal forced turbulence.
 
 ``TurbulenceSimulationsDensityName`` (external)
+
 ``TurbulenceSimulationTotalEnergyName`` (external)
+
 ``TurbulenceSimulationGasPressureName`` (external)
+
 ``TurbulenceSimulationGasEnergyName`` (external)
+
 ``TurbulenceSimulationVelocityName`` (external)
+
 ``TurbulenceSimulationRandomForcingName`` (external)
+
 ``TurbulenceSimulationMagneticName`` (external)
+
 ``TurbulenceSimulationInitialTemperature`` (external)    
+
 ``TurbulenceSimulationInitialDensity`` (external)
+
 ``TurbulenceSimulationSoundSpeed`` (external)
+
 ``TurbulenceSimulationInitialPressure`` (external)
+
 ``TurbulenceSimulationInitialDensityPerturbationAmplitude`` (external)
+
 ``TurbulenceSimulationNumberOfInitialGrids`` (external)
-     Default: 1
+    Default: 1
 ``TurbulenceSimulationSubgridsAreStatic`` (external)
-     Boolean flag. Default: 1
+    Boolean flag. Default: 1
 ``TurbulenceSimulationGridLeftEdge[]`` (external)
+    TBD
 ``TurbulenceSimulationGridRightEdge[]`` (external)
+    TBD
 ``TurbulenceSimulationGridDimension[]`` (external)
+    TBD
 ``TurbulenceSimulationGridLevel[]`` (external)
+    TBD
 ``TurbulenceSimulationInitialMagneticField[i]`` (external)
-     Initial magnetic field strength in the ith direction. Default: 5.0 (all)
+    Initial magnetic field strength in the ith direction. Default: 5.0 (all)
 ``RandomForcing`` (external)
     This parameter is used to add random forcing field to create turbulence; see Mac Low 1999, ApJ 524, 169. Default: 0
 ``RandomForcingEdot`` (external)
@@ -1073,7 +1353,7 @@ Protostellar Collapse (61)
 ``ProtostellarCollapseOuterDensity`` (external)
      Initial density. Default: 1.0
 ``ProtostellarCollapseAngularVelocity`` (external)
-     Initial agnular velocity. Default: 0
+     Initial angular velocity. Default: 0
 ``ProtostellarCollapseSubgridLeft``, ``ProtostellarCollapseSubgridRight`` (external)
      Start and end position of subgrid. Default: 0 (for both)
 
@@ -1212,6 +1492,56 @@ Put Sink from Restart (107)
 ``PutSinkRestartName`` (external)
      Filename to restart from. 
 
+
+.. _clustercoolingflow_param:
+
+Cluster Cooling Flow (108)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``ClusterSMBHFeedback`` (external)
+    Boolean flag. Default: FALSE
+``ClusterSMBHJetMdot`` (external)
+    Mdot of one Jet. Units: Solar mass per year. Default: 3.0
+``ClusterSMBHJetVelocity`` (external)
+    Units:km/s. Default: 10000.0
+``ClusterSMBHJetRadius`` (external)
+    The radius of the jet launching region. Units: cell width. Default: 6.0
+``ClusterSMBHJetLaunchOffset`` (external)
+    The distance of the jet launching plane to the center of the cluster. Units: cell width. Default: 10.0
+``ClusterSMBHStartTime`` (external)
+    The time to start feedback in code unit. Default: 1.0
+``ClusterSMBHTramp`` (external)
+    The ramp time in Myr. Default: 0.1
+``ClusterSMBHJetOpenAngleRadius`` (external)
+    Default: 0.0
+``ClusterSMBHFastJetRadius`` (external)
+    Default: 0.1
+``ClusterSMBHFastJetVelocity`` (external)
+    Unit: km/s. Default: 10000.0
+``ClusterSMBHJetEdot`` (external)
+    Unit: 10^44 ergs/s. Default: 1.0
+``ClusterSMBHKineticFraction`` (external)
+    The fraction of kinetic energy feedback; the rest is thermal feedback. Default: 1.0
+``ClusterSMBHJetAngleTheta`` (external)
+    The angle of the jet direction with respect to z-axis. Default: 0.0 (along the axis)
+``ClusterSMBHJetAnglePhi`` (external)
+    Default: 0.0
+``ClusterSMBHJetPrecessionPeriod`` (external)
+    Unit: Myr. Default: 0.0 (not precessing)
+``ClusterSMBHCalculateGasMass`` (external)
+    Type: integer. 1--Calculate the amount of cold gas around the SMBH and remove it at the rate of 2*Mdot; 2--Calculate Mdot based on the amount of cold gas around the SMBH; 0--off (do not remove cold gas). Default: 1.
+``ClusterSMBHFeedbackSwitch`` (external)
+    Boolean flag. When ClusterSMBHCalculateGasMass=1, ClusterSMBHFeedbackSwitch is turned on when there is enough cold gas (ClusterSMBHEnoughColdGas) around the SMBH. Default: FALSE
+``ClusterSMBHEnoughColdGas`` (external)
+    Unit: Solar mass. Default: 1.0e7
+``ClusterSMBHAccretionTime`` (external)
+    When ClusterSMBHCalculateGasMass = 2, Mdot = Mcold/ClusterSMBHAccretionTime. Default: 5.0 (Myr)
+``ClusterSMBHJetDim`` (external)
+    0--x; 1--y; 2--z. Default: 2
+``ClusterSMBHAccretionEpsilon`` (external)
+    Jet Edot = ClusterSMBHAccretionEpsilon * Mdot * c^2. Default: 0.001
+
+
 .. _mhd1d_param:
 
 1D MHD Test (200)
@@ -1241,6 +1571,10 @@ Put Sink from Restart (107)
 2D MHD Test (201)
 ~~~~~~~~~~~~~~~~~
 
+This problem type sets up many common 2D hydro and MHD problem types.
+Many of them can be run also without MHD despite the name. Which problem is done is controled by
+MHD2DProblemType which can vary from 0 to 16 so far.
+
 ``RefineAtStart`` (external)
     Boolean flag. Default: TRUE
 ``LowerVelocityX``, ``UpperVelocityX`` (external)
@@ -1257,6 +1591,7 @@ Put Sink from Restart (107)
     Initial magnetic field y-direction. Default: 0 (for both)
 ``MHD2DProblemType`` (external)
     Default: 0
+    0: Raleigh-Taylor, 1: MHD rotor (Toth 2000, JCompPhys 161, 605.), 2: MHD blast wave (Gardiner and Stone 2005, JCompPhys. 205, 509), 3: MHD Kelvin-Helmholtz (Gardiner & Stone 2005), 4: Another MHD Kelvin Helmholtz, 5: Shock-vortex interaction (Rault, Chiavassa & Donat, 2003, J. Scientific Computing, 19, 1.), 6: Sedov-Taylor Blast Wave (Fryxell et al. 2000, ApJS, 131, 273), 7: Cylindrical Sedov-Taylor Blast Wave (Fryxell et al. 2000), 8: Like MHD2DProblemType = 5 but with a small perturbation upstream of the shock to test odd even coupling of Reimann Solvers, 9: Smoothed Kelvin Helnholtz problem (Robertson, Kravtsov, Gnedin, Abel & Rudd 2010, MNRAS, 401), 10: A modified Raleigh-Taylor problem, 11: Uniform density with sinusoidal shear velocity (Compare to rpSPH tests in Abel 2012), 12: Experimental test, 13: Exploratory blob test, 14: Wengen 2 test to study colliding flows with very soft equations of state, 15: Another experiment with B-fields, 16: A validated non-linear Kelvin Helmholtz test (Lecoanet, McCourt, Quataert, Burns, Vasil, Oishi, Brown, Stone, & O’Leary 2015 preprint)
 ``RampWidth`` (external)
     Default: 0.05
 ``UserColour`` (external)
@@ -1336,19 +1671,26 @@ Galaxy Disk (207)
 ``HaloTemperature[i]`` (external)
     Temperature of the halo for the ith sphere. Default: 1 (all)
 ``HaloAngVel[i]`` (external)
+    TBD
 ``HaloSpin[i]`` (external)
+    TBD
 ``HaloPosition[i][j]`` (external)
     Position of the Halo. 
 ``HaloVelocity[i][j]`` (external)
     Velocity of the Halo.
 ``DiskRadius[i]`` (external)
+    TBD
 ``DiskHeight[i]`` (external)
+    TBD
 ``DiskDensity[i]`` (external)
+    TBD
 ``DiskTemperature[i]`` (external)
+    TBD
 ``DiskMassFraction[i]`` (external)
     Default: 0 (all)
 ``DiskFlaringParameter[i]`` (external)
     Default: 10 (all)
+
 .. _agndisk_param:
 
 AGN Disk (207)
@@ -1372,6 +1714,34 @@ AGN Disk (207)
     Initial height of the disk. Default: 1
 
 .. _poissonsolver_param:
+.. _shocktube_param:
+
+CR Shock Tube (250: unigrid and AMR)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Very similar to normal shock tube (see problem 1) but includes CR
+    component.  See Salem, Bryan & Hummels (2014) for discussion.
+
+    In addition the regular shock tube parameters, we add:
+
+``HydroShockTubesLeftCREnDensity``, ``HydroShockTubesRightCREnDensity`` (external)
+    The initial CR energy density on the left and right sides.
+    Default: 1.0 for each value.
+``HydroShockTubesCenterDensity``, ``HydroShockTubesCenterPressure``,
+``HydroShockTubesCenterVelocityX``,
+``HydroShockTubesCenterVelocityY``,
+``HydroShockTubesCenterVelocityZ``,
+``HydroShockTubesCenterCREnDensity`` (external)
+    In addition to setting a shock tube with two constant regions,
+    this version also allows for three constant region, 
+    with a Center region in addition to the Left and Right regions.
+    Finally, there are two special cases -- if
+    HydroShockTubesCenterCREnDensity is set to 123.4, then the central
+    region will be set to a ramp between the left and right regions,
+    and if HydroShockTubesCenterCREnDensity is set to 567.8, then a
+    gaussian CR energy density is initialized (these problems were set
+    up to test the CR diffusion).
+
 
 Poisson Solver Test (300)
 ~~~~~~~~~~~~~~~~~~~~~~~~~

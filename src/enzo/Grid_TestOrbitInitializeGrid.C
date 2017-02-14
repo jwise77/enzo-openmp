@@ -38,10 +38,6 @@ int grid::TestOrbitInitializeGrid(int NumberOfTestParticles,
 
   int dim, i;
 
-  if (UseBaryons) {
-    ENZO_FAIL("UseBaryons not implemented yet.\n");
-  }
-
   NumberOfParticles = NumberOfTestParticles + 1;
 
   /* Return if this doesn't concern us. */
@@ -68,7 +64,13 @@ int grid::TestOrbitInitializeGrid(int NumberOfTestParticles,
 
   for (i = 0; i < NumberOfParticles; i++) {
     ParticleNumber[i] = i;
-    ParticleType[i] = PARTICLE_TYPE_DARK_MATTER;
+
+    /* if MRPs are activated, set the particle type for test particles to MUST_REFINE */
+    if (MustRefineParticlesRefineToLevel > 0 && i > 0) {
+      ParticleType[i] = PARTICLE_TYPE_MUST_REFINE;
+    }else{
+      ParticleType[i] = PARTICLE_TYPE_DARK_MATTER;
+    }
   }
 
   /* Set central particle. */
@@ -101,27 +103,39 @@ int grid::TestOrbitInitializeGrid(int NumberOfTestParticles,
 
   }
 
-  /* This is an orbit in the x-y plane. */
-
-  ParticlePosition[0][1] = ParticlePosition[0][0] - TestRadius;
-  ParticlePosition[1][1] = ParticlePosition[1][0];
-  ParticlePosition[2][1] = ParticlePosition[2][0];
-
-  ParticleVelocity[0][1] = 0;
-
-/* JRT 09/13/06 */
-/*ParticleVelocity[1][1] = circular_velocity; */
-  ParticleVelocity[1][1] = TestVelocity;
-/* JRT 09/13/06 */
-  ParticleVelocity[2][1] = 0;
-
   ParticleMass[1] = TestMass/pow(CellWidth[0][0], 3);  // what is actually stored in ParticleMass is density so divide by volume
+  if(MustRefineParticlesRefineToLevel > 0){
+    /* if using MRPs orbit in xz plane */
+    ParticlePosition[0][1] = ParticlePosition[0][0] - TestRadius;
+    ParticlePosition[1][1] = ParticlePosition[1][0];
+    ParticlePosition[2][1] = ParticlePosition[2][0];
 
-/* JRT 09/13/06  */
+    ParticleVelocity[0][1] = 0;
+    ParticleVelocity[2][1] = TestVelocity;
+    ParticleVelocity[1][1] = 0;
+    ParticleVelocity[2][0] = - CentralVelocity;
+
+  }else{
+    /* This is an orbit in the x-y plane. */
+
+    ParticlePosition[0][1] = ParticlePosition[0][0] - TestRadius;
+    ParticlePosition[1][1] = ParticlePosition[1][0];
+    ParticlePosition[2][1] = ParticlePosition[2][0];
+    
+    ParticleVelocity[0][1] = 0;
+    
+    /* JRT 09/13/06 */
+    /*ParticleVelocity[1][1] = circular_velocity; */
+    ParticleVelocity[1][1] = TestVelocity;
+    /* JRT 09/13/06 */
+    ParticleVelocity[2][1] = 0;
+    
   
-  ParticleVelocity[1][0] = - CentralVelocity;
-/* JRT 09/13/06  */
-
+    /* JRT 09/13/06  */
+    
+    ParticleVelocity[1][0] = - CentralVelocity;
+    /* JRT 09/13/06  */
+  }
 
   printf("The particle masses are:\n");
   printf("   (central)   %e\n",ParticleMass[0]);
@@ -134,6 +148,9 @@ int grid::TestOrbitInitializeGrid(int NumberOfTestParticles,
   printf("The particle velocities are:\n");
   printf("  (central)   %e %e %e\n",ParticleVelocity[0][0],ParticleVelocity[1][0],ParticleVelocity[2][0] );
   printf("  (test)      %e %e %e\n",ParticleVelocity[0][1],ParticleVelocity[1][1],ParticleVelocity[2][1] );
+
+  if(UseBaryons)
+    printf("\n    ** Baryon fields have been turned on! **\n");
 
   fflush(stdout);
 

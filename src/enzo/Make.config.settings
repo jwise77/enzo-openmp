@@ -31,7 +31,6 @@
 #    CONFIG_ACCELERATION_BOUNDARY
 #    CONFIG_OPT
 #    CONFIG_TESTING
-#    CONFIG_TPVEL
 #    CONFIG_PHOTON
 #    CONFIG_HYPRE
 #    CONFIG_EMISSIVITY
@@ -42,6 +41,7 @@
 #    CONFIG_USE_ECUDA
 #    CONFIG_SET_ACCELERATION_BOUNDARY
 #    CONFIG_ENZO_PERFORMANCE
+#    CONFIG_GRACKLE
 #
 #=======================================================================
 
@@ -245,15 +245,6 @@
      CONFIG_TESTING = no
 
 #=======================================================================
-# CONFIG_TPVEL
-#=======================================================================
-#    yes           Include tracer particle velocity info printout
-#    no            Do not include tracer particle velocity info printout
-#-----------------------------------------------------------------------
-
-     CONFIG_TPVEL = no
-
-#=======================================================================
 # CONFIG_PHOTON
 #=======================================================================
 #    yes           Include adaptive ray tracing for radiative transfer
@@ -333,3 +324,21 @@
 #----------------------------------------------------------------------- 
  
      CONFIG_GRAVITY_4S = no
+
+#======================================================================= 
+# CONFIG_GRACKLE
+#======================================================================= 
+#    yes           Compile with Grackle support
+#    no            Compile without Grackle support
+#----------------------------------------------------------------------- 
+ 
+     CONFIG_GRACKLE = no
+
+#======================================================================= 
+# CONFIG_LOG2ALLOC
+#======================================================================= 
+#    yes           Compile with power of 2 block size allocations
+#    no            Compile without power of 2 block size allocations
+#----------------------------------------------------------------------- 
+ 
+     CONFIG_LOG2ALLOC = no

@@ -85,9 +85,11 @@
 
 #define MAX_COMPUTE_TIMERS                  5
 
+#define MAX_CROSS_SECTIONS                  4
+
 #define ROOT_PROCESSOR                      0
 
-#define VERSION                             2.0  /* current version number */
+#define VERSION                             2.5  /* current version number */
 
 /* Unmodifiable Parameters */
 
@@ -377,7 +379,15 @@ typedef int            HDF5_hid_t;
 
 /* Definitions for grid::CommunicationSend/ReceiveRegion and 
    grid::DepositPositions */
+//If MAX_EXTRA_OUTPUTS neesd to be changed, change statements in ReadParameterFile and WriteParameterFile.
 #define MAX_EXTRA_OUTPUTS                10 
+
+#define BARYONS_ELECTRIC                 -13
+#define BARYONS_MAGNETIC                 -12
+#define JUST_BARYONS                     -11
+#define MAGNETIC_FIELD                   -10
+#define ELECTRIC_FIELD                   -9
+#define nBfields 3
 
 #define INTERPOLATED_FIELDS              -8
 #define PARTICLE_MASS_FLAGGING_FIELD     -7
@@ -469,6 +479,13 @@ typedef int            HDF5_hid_t;
 #define PARTICLE_TYPE_COLOR_STAR     9
 #define PARTICLE_TYPE_SIMPLE_SOURCE 10
 
+#define CHILDRENPERPARENT           12
+/* Ways to deposit particles from a subgrid. */
+
+#define CIC_DEPOSIT        0
+#define CIC_DEPOSIT_SMALL  1
+#define NGP_DEPOSIT        2
+
 /* Star particle handling */
 
 #define NORMAL_STAR	0
@@ -482,6 +499,9 @@ typedef int            HDF5_hid_t;
 #define MBH_PARTICLE    9
 #define COLORED_POP3_STAR  10
 #define H2REG_STAR     11
+#define SINGLE_SUPERNOVA 12
+#define DISTR_FEEDBACK 13
+#define MOM_STAR 14
 
 #define STARMAKE_METHOD(A) (StarParticleCreation >> (A) & 1)
 #define STARFEED_METHOD(A) (StarParticleFeedback >> (A) & 1)
@@ -533,12 +553,14 @@ typedef int            HDF5_hid_t;
 
 #define MAX_LEAF 2
 
+/* Maximum number of stochastic foring modes. */
+#define MAX_FORCING_MODES                 255
+
 /* Number of entries in the Pop III IMF lookup table */
 
 #define IMF_TABLE_ENTRIES 1000
 
 #ifdef USE_MPI
-#define MPI_INSTRUMENTATION
 #else /* USE_MPI */
 //#undef MEM_TRACE
 #undef MPI_TRACE

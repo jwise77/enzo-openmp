@@ -78,7 +78,13 @@ have a look at :ref:`controlling_data_output` for more information.
     evolving Enzo will check for new signal files to output.  (See
     :ref:`force_output_now`.)  Default 1.
 ``TracerParticleOn``
-    This parameter is used to set the velocities of the tracer particles equal to the gas velocities in the current cells.   Tracer particles are massless and can be used to output values of the gas as they advect with the fluid.  Default: 0
+    This parameter is used to set the velocities of the tracer
+    particles equal to the gas velocities in the current cells.
+    Tracer particles are massless and can be used to output values of
+    the gas as they advect with the fluid.  Default: 0
+``TracerParticleOutputVelocity``
+    This parameter is used to output tracer particle velocity as well
+    as position, density, and temperature.  Default: 0
 ``OutputFirstTimeAtLevel`` (external)
     This forces Enzo to output when a given level is reached, and at
     every level thereafter. Default is 0 (off). User can usefully
@@ -118,11 +124,15 @@ have a look at :ref:`controlling_data_output` for more information.
     ``star_particle_density``; and 2 will dump
     ``actively_forming_stellar_mass_density``, ``SFR_density``, etc.
     Default: 0.
+``PopIIIOutputOnFeedback`` (external)
+    Writes an interpolated output when a Pop III is formed or goes
+    supernova.  Default: 0
 ``OutputOnDensity`` (external)
-    Should interpolated outputs be generated at varying peak density?  Default: 0
+    Should interpolated outputs be generated at varying peak density?
+    Default: 0
 ``StartDensityOutput`` (external)
     The first density (in log g/cc) at which to output.
-``CurrentDensityOutput`` (external)
+``CurrentDensityOutput`` (internal)
     The most recent density at which output was generated.
 ``IncrementDensityOutput`` (external)
     After a density-directed output, how much should the density be increased by?  Default: 999
@@ -190,6 +200,18 @@ Stopping Parameters
     Causes the simulation to immediately stop when a specified level is
     reached. Default value 0 (off), possible values are levels 1
     through maximum number of levels in a given simulation.
+``StopFirstTimeAtDensity`` (external)
+    Causes the simulation to immediately stop when the maximum gas
+    density reaches this value.  In units of proper g/cm^3.  Not used if less
+    than or equal to zero. Default: 0.0
+``StopFirstTimeAtMetalEnrichedDensity`` (external)
+    Causes the simulation to immediately stop when the maximum gas
+    density with above some metallicity, specified by
+    ``EnrichedMetalFraction``, is reached.  In units of g/cm^3.  Not
+    used if less than or equal to zero.  Default: 0.0
+``EnrichedMetalFraction`` (external)
+    See ``StopFirstTimeAtMetalEnrichedDensity``.  In units of absolute
+    metal fraction.  Default: 1e-8
 ``NumberOfOutputsBeforeExit`` (external)
     After this many datadumps have been written, the code will exit.  If 
     set to 0 (default), this option will not be used.  Default: 0.

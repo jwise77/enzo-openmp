@@ -63,6 +63,7 @@ void DeleteSubgridMarker() { delete [] SubgridMarker; SubgridMarker = NULL; };
    int SubgridMarkerPostParallelGZ(grid *Parent, HierarchyEntry **Grids[],
 				   int *NumberOfGrids);
    int SetSubgridMarkerIsolatedBoundaries(void);
+   int CheckSubgridMarker(void);
 
 /* Return Subgrid Marker for a position */
 
@@ -103,9 +104,12 @@ void DeleteSubgridMarker() { delete [] SubgridMarker; SubgridMarker = NULL; };
 				      int ToNumber, int FromNumber, 
 				      PhotonPackageEntry **ToPP);
 
+  int CommunicationSendSubgridMarker(grid *ToGrid, int ToProcessor);
+
 /* Transport Photon Packages */ 
 
-int TransportPhotonPackages(int level, ListOfPhotonsToMove **PhotonsToMove, 
+int TransportPhotonPackages(int level, int finest_level,
+			    ListOfPhotonsToMove **PhotonsToMove, 
 			    int GridNum, grid **Grids0, int nGrids0, 
 			    grid *ParentGrid, grid *CurrentGrid);
 
@@ -182,10 +186,35 @@ float ReturnTotalNumberOfRaySegments(int RaySegNum) {
 }
 
 /************************************************************************
-   UNUSED FUNCTIONS (FOR DEBUGGING PHOTON COUNTS)
+   FUNCTIONS FOR DEBUGGING PHOTON COUNTS
 ************************************************************************/
+#define NO_DEBUG
+#ifdef DEBUG
+int ErrorCheckSource(void) {
+  PhotonPackageEntry *PP;
+  for (PP = PhotonPackages->NextPackage; PP; PP = PP->NextPackage) {
+    if (PP->CurrentSource != NULL) {
+      if ((PP->CurrentSource->LeafID < 0 ||
+	   PP->CurrentSource->LeafID > 10000) &&
+	  PP->CurrentSource->LeafID != INT_UNDEFINED) {
+	printf("Bad merge...\n");
+	return FAIL;
+      }
+    }
+  }
+  for (PP = FinishedPhotonPackages->NextPackage; PP; PP = PP->NextPackage) {
+    if (PP->CurrentSource != NULL) {
+      if ((PP->CurrentSource->LeafID < 0 ||
+	   PP->CurrentSource->LeafID > 10000) &&
+	  PP->CurrentSource->LeafID != INT_UNDEFINED) {
+	printf("Bad merge...\n");
+	return FAIL;
+      }
+    }
+  }
+  return SUCCESS;
+}
 
-#ifdef UNUSED
 int ErrorCheckPhotonNumber(int level) {
   if (MyProcessorNumber != ProcessorNumber)
     return SUCCESS;
@@ -233,9 +262,9 @@ int ReturnRealPhotonCount(void) {
   }
   return result;
 }
-#endif /* UNUSED */
+#endif /* DEBUG */
 /************************************************************************
-   END -- UNUSED FUNCTIONS
+   END -- DEBUG FUNCTIONS
 ************************************************************************/
 
 int CountPhotonNumber(void) {
@@ -386,7 +415,8 @@ int WalkPhotonPackage(PhotonPackageEntry **PP,
 		      int &PauseMe, int &DeltaLevel, float LightCrossingTime,
 		      float DensityUnits, 
 		      float TemperatureUnits, float VelocityUnits, 
-		      float LengthUnits, float TimeUnits, float LightSpeed);
+		      float LengthUnits, float TimeUnits, float LightSpeed,
+		      float MinimumPhotonFlux);
 
 int FindPhotonNewGrid(int cindex, FLOAT *r, FLOAT *u, int *g,
 		      PhotonPackageEntry* &PP,
@@ -419,6 +449,9 @@ int PhotonTestInitializeGrid(int NumberOfSpheres,
 			     float SphereAng2[MAX_SPHERES],
 			     int   SphereNumShells[MAX_SPHERES],
 			     int   SphereType[MAX_SPHERES],
+			     int   SphereConstantPressure[MAX_SPHERES],
+			     int   SphereSmoothSurface[MAX_SPHERES],
+			     float SphereSmoothRadius[MAX_SPHERES],
 			     float SphereHII[MAX_SPHERES],
 			     float SphereHeII[MAX_SPHERES],
 			     float SphereHeIII[MAX_SPHERES],
@@ -443,6 +476,7 @@ int PhotonTestInitializeGrid(int NumberOfSpheres,
 
 /************************************************************************/
 
+int StarParticlesToRadSources(FLOAT Time, double ConversionFactor);
 int ConvertToCellCenteredRadiation(void);
 
 int ReassignSuperSources(void);

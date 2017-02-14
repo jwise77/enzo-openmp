@@ -183,7 +183,6 @@ c     (linear interpolation between end states, as suggested in PPM ref)
 c
          frac     = l0(i) - lbar(i)
          if (frac .lt. tiny) frac = tiny
-         if (frac .gt. 1._RKIND)  frac = 1._RKIND
          frac     = (0._RKIND - lbar(i))/frac
          frac     = min(max(frac, 0._RKIND), 1._RKIND)
          pb(i)    = p0(i)*frac + pbar(i,j)*(1._RKIND - frac)
@@ -252,9 +251,9 @@ c
        do n=1,ncolor
           do i=i1, i2+1
              if (ub(i) .gt. 0._RKIND) then
-                colb(i,n) = colls(i,j,n)
+                colb(i,n) = colls(i,j,n) * db(i)/dls(i,j)
              else
-                colb(i,n) = colrs(i,j,n)
+                colb(i,n) = colrs(i,j,n) * db(i)/drs(i,j)
              endif
           enddo
        enddo
@@ -391,7 +390,7 @@ c
           enddo
           do i=i1, i2+1
              qc = dt/dx(i)
-             gef(i,j) = dt*dugeb(i)
+             gef(i,j) = qc*dugeb(i)
              ges(i,j) = qc * pcent(i) * (ub(i) - ub(i+1))
           enddo
        endif

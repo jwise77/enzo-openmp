@@ -192,7 +192,7 @@ int CommunicationLoadBalancePhotonGrids(HierarchyEntry **Grids[], int *NumberOfG
     if (Grids[lvl][i]->GridData->ReturnProcessorNumber() !=
 	NewProcessorNumber[index]) {
       Grids[lvl][i]->GridData->
-	CommunicationMoveGrid(NewProcessorNumber[index], FALSE, FALSE);
+	CommunicationMoveGrid(NewProcessorNumber[index], FALSE, FALSE, TRUE);
       GridsMoved++;
     }
 
@@ -207,7 +207,7 @@ int CommunicationLoadBalancePhotonGrids(HierarchyEntry **Grids[], int *NumberOfG
       if (RandomForcing)  //AK
 	Grids[lvl][i]->GridData->AppendForcingToBaryonFields();
       Grids[lvl][i]->GridData->
-	CommunicationMoveGrid(NewProcessorNumber[index], FALSE, FALSE);
+	CommunicationMoveGrid(NewProcessorNumber[index], FALSE, FALSE, TRUE);
     }
 
   /* Receive grids */
@@ -224,12 +224,18 @@ int CommunicationLoadBalancePhotonGrids(HierarchyEntry **Grids[], int *NumberOfG
       Grids[lvl][i]->GridData->RemoveForcingFromBaryonFields();
   }
 
+  /* Post-process SubgridMarker to obtain grid pointers */
+
+  index = index2;
+  for (i = 0; i < NumberOfGrids[lvl]; i++, index++)
+    Grids[lvl][i]->GridData->SubgridMarkerPostParallel(Grids, NumberOfGrids);
+
   index2 += NumberOfGrids[lvl];
   CommunicationBarrier();
 
   if (MyProcessorNumber == ROOT_PROCESSOR && GridsMoved > 0) {
     tt1 = ReturnWallTime();
-    printf("PhotonLoadBalance[%d]: Number of grids moved = %"ISYM" out of %"ISYM" "
+    printf("PhotonLoadBalance[%"ISYM"]: Number of grids moved = %"ISYM" out of %"ISYM" "
 	   "(%lg seconds elapsed)\n", lvl, GridsMoved, NumberOfGrids[lvl], tt1-tt0);
   }
 

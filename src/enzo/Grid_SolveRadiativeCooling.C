@@ -159,7 +159,7 @@ int grid::SolveRadiativeCooling()
   float *velocity3   = BaryonField[Vel3Num];
  
   /* Compute total gas energy if using MHD */
-  if (HydroMethod == MHD_RK) {
+  if ( UseMHD ) {
     totalenergy = new float[size];
     float B2;
     for (int n=0; n<size; n++) {
@@ -259,6 +259,7 @@ int grid::SolveRadiativeCooling()
   if (MultiSpecies) {
 
     // Multispecies cooling
+    int addRT = (RadiativeTransfer) || (RadiativeTransferFLD);
 
     FORTRAN_NAME(multi_cool)(
        density, totalenergy, gasenergy, velocity1, velocity2, velocity3,
@@ -299,7 +300,7 @@ int grid::SolveRadiativeCooling()
        &RadiationData.NumberOfFrequencyBins,
        &RadiationFieldRecomputeMetalRates,
        &RadiationData.RadiationShield, &HIShieldFactor, &HeIShieldFactor, &HeIIShieldFactor,
-       &RadiativeTransfer, BaryonField[gammaNum],
+       &addRT, BaryonField[gammaNum],
        &H2OpticalDepthApproximation, &CIECooling, CoolData.cieco,
        &CloudyCoolingData.CMBTemperatureFloor,
        &CloudyCoolingData.IncludeCloudyHeating,
@@ -351,7 +352,7 @@ int grid::SolveRadiativeCooling()
        CoolData.EquilibriumRate, &CoolData.gammah, &Mu);
   }
 
-  if (HydroMethod == MHD_RK) {
+  if ( UseMHD ) {
     float B2, v2;//, rho, eint, p, h, cs, dpdrho, dpde;
     for (int n=0; n<size; n++) {
       B2 = pow(BaryonField[B1Num][n],2) + pow(BaryonField[B2Num][n],2) + pow(BaryonField[B3Num][n],2);

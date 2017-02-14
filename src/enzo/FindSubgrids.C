@@ -67,17 +67,28 @@ int FindSubgrids(HierarchyEntry *Grid, ProtoSubgrid *SubgridList[],
  
   /* Add a buffer region around each flagged cell. */
  
-  if (NumberOfFlaggedCells != 0)
-    for (i = 0; i < NumberOfBufferZones; i++)
-      NumberOfFlaggedCells = CurrentGrid->FlagBufferZones();
- 
-  /* Set the static (permanent) regions. */
- 
-  if (CurrentGrid->SetFlaggingFieldStaticRegions(level, NumberOfFlaggedCells)
-      == FAIL) {
-    ENZO_FAIL("Error in grid->SetFlaggingFieldStaticRegions.");
-  }
+  if (NumberOfFlaggedCells != 0) {
 
+    /* check flagged cells are in allowed refined region */
+    
+    if (CurrentGrid->SetFlaggingFieldMultiRefineRegions(level) 
+	== FAIL) {
+      fprintf(stderr, "Error in grid->SetFlaggingFieldMultiRefineRegions.\n");
+      return FAIL;
+    }
+
+    NumberOfFlaggedCells = CurrentGrid->FlagBufferZones();
+
+  } 
+
+  /* Set the static (permanent) regions. */
+  if (MustRefineParticlesCreateParticles != 3){
+     if (CurrentGrid->SetFlaggingFieldStaticRegions(level, NumberOfFlaggedCells)
+	== FAIL) {
+      ENZO_FAIL("Error in grid->SetFlaggingFieldStaticRegions.");
+    }
+
+  }
   TotalFlaggedCells += NumberOfFlaggedCells;
   if (NumberOfFlaggedCells > 0)
     FlaggedGrids++;

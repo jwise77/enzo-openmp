@@ -46,7 +46,10 @@ int ReadPhotonSources(FILE *fptr, FLOAT CurrentTime)
     PhotonTestSourceType[source] = Isotropic;
     PhotonTestSourceLuminosity[source] = 0.;
     PhotonTestSourceLifeTime[source] = 0.;
-    PhotonTestSourceCreationTime[source] = 0.99999*CurrentTime;
+    if (CurrentTime > 0)
+      PhotonTestSourceCreationTime[source] = 0.999*CurrentTime;
+    else
+      PhotonTestSourceCreationTime[source] = -1.0;
     PhotonTestSourceRampTime[source] = 0.;
     PhotonTestSourceEnergyBins[source] = 1;
     PhotonTestSourceSED[source] = NULL;
@@ -251,7 +254,7 @@ int ReadPhotonSources(FILE *fptr, FLOAT CurrentTime)
      super source in each leaf. */
   
   if (RadiativeTransferSourceClustering == TRUE)
-    if (CreateSourceClusteringTree(NULL, NULL, NULL) == FAIL) {
+    if (CreateSourceClusteringTree(0, NULL, NULL) == FAIL) {
       ENZO_FAIL("Error in CreateSourceClusteringTree.\n");
 
     }

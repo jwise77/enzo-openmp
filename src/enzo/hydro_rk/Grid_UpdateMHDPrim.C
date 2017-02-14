@@ -64,8 +64,8 @@ int grid::UpdateMHDPrim(float **dU, float c1, float c2)
     }
   }
 
-  float *Prim[MAX_NUMBER_OF_BARYON_FIELDS];
-  float *OldPrim[MAX_NUMBER_OF_BARYON_FIELDS];
+  float *Prim[NEQ_MHD+NSpecies+NColor];
+  float *OldPrim[NEQ_MHD+NSpecies+NColor];
   this->ReturnHydroRKPointers(Prim, false);   
   this->ReturnOldHydroRKPointers(OldPrim, false);
 
@@ -74,17 +74,17 @@ int grid::UpdateMHDPrim(float **dU, float c1, float c2)
   int NSpecies_renorm;
   if (MixSpeciesAndColors) 
     NSpecies_renorm = NSpecies+NColor;
-  else {
+  else if (NoMultiSpeciesButColors) {
     NSpecies_renorm = NSpecies;
   }
-//  else
-//    switch (MultiSpecies) { //update pure species! not colours!
-//    case 0:  NSpecies_renorm = 0;  break;
-//    case 1:  NSpecies_renorm = 5;  break;
-//    case 2:  NSpecies_renorm = 8;  break;
-//    case 3:  NSpecies_renorm = 11; break;
-//    default: NSpecies_renorm = 0;  break;
-//    }
+  else
+    switch (MultiSpecies) { //update pure species! not colours!
+    case 0:  NSpecies_renorm = 0;  break;
+    case 1:  NSpecies_renorm = 5;  break;
+    case 2:  NSpecies_renorm = 8;  break;
+    case 3:  NSpecies_renorm = 11; break;
+    default: NSpecies_renorm = 0;  break;
+    }
   
   // update species
   for (field = NEQ_MHD; field < NEQ_MHD+NSpecies_renorm; field++) {  
@@ -111,7 +111,6 @@ int grid::UpdateMHDPrim(float **dU, float c1, float c2)
           igrid = (k * GridDimension[1] + j) * GridDimension[0] + GridStartIndex[0];
           for (i = GridStartIndex[0]; i <= GridEndIndex[0]; i++, n++, igrid++) {
             Prim[field][igrid] = min(1.0, max((Prim[field][igrid]/D[n]), SmallX));
-            //Prim[field][igrid] = Prim[field][igrid]/D[n];
             sum[n] += Prim[field][igrid];
           }
         }
@@ -249,7 +248,7 @@ int grid::UpdateMHDPrim(float **dU, float c1, float c2)
 	  eint = Eint_new/D_new;
 	  float eint1 = etot - 0.5*v2 - 0.5*B2/D_new;
 	  if (eint1 > 0) {
-	    EOS(p, D_new, eint, h, cs, dpdrho, dpde, EOSType, 2);
+	    EOS(p, D_new, eint1, h, cs, dpdrho, dpde, EOSType, 2);
 	  }
 	  else {
 	    cs = 0.0;

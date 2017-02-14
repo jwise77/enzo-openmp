@@ -40,18 +40,17 @@ int GetUnits(float *DensityUnits, float *LengthUnits,
 	     float *VelocityUnits, FLOAT Time);
 int EvolvePhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 		  Star *&AllStars, FLOAT GridTime, int level, int LoopTime = TRUE);
+int StarParticleRadTransfer(LevelHierarchyEntry *LevelArray[], int level,
+			    Star *AllStars);
 
 int RestartPhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
-		   Star *AllStars)
+		   int level, Star *AllStars)
 {
 
-  int ig, level;
+  int ig, _level;
   LevelHierarchyEntry *Temp;
 
   //MetaData->FirstTimestepAfterRestart = FALSE;
-
-  if (GlobalRadiationSources->NextSource == NULL)
-    return SUCCESS;
 
   if (!RadiativeTransfer)
     return SUCCESS;
@@ -71,7 +70,9 @@ int RestartPhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 
   GetUnits(&DensityUnits, &LengthUnits, &TemperatureUnits,
 	   &TimeUnits, &VelocityUnits, MetaData->Time);
-  
+
+  StarParticleRadTransfer(LevelArray, level, AllStars);
+
   /* Light crossing time */
 
   const float clight = 2.9979e10;
@@ -80,8 +81,21 @@ int RestartPhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
     (clight * RadiativeTransferPropagationSpeedFraction);
   FLOAT SavedPhotonTime = PhotonTime;
   float SavedPhotonTimestep = dtPhoton;
+  int savedCoupledChemistrySolver = RadiativeTransferCoupledRateSolver;
+  int savedAdaptiveTimestep = RadiativeTransferAdaptiveTimestep;
   PhotonTime -= LightCrossingTime;
-  dtPhoton = 0.1*LightCrossingTime;
+  if (RadiativeTransferAdaptiveTimestep == FALSE)
+    dtPhoton = min(dtPhoton, LightCrossingTime);
+  else
+    dtPhoton = 1.0*LightCrossingTime;
+
+  if (GlobalRadiationSources->NextSource == NULL) {
+    RadiativeTransferCoupledRateSolver = savedCoupledChemistrySolver;
+    RadiativeTransferAdaptiveTimestep = savedAdaptiveTimestep;
+    dtPhoton = SavedPhotonTimestep;
+    PhotonTime = SavedPhotonTime;
+    return SUCCESS;
+  }
 
   if (debug)
     printf("Restarting radiative transfer.  Light-crossing time = %"GSYM"\n", 
@@ -90,8 +104,8 @@ int RestartPhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
   /* Solve radiative transfer */
 
   int PhotonCount, LastPhotonCount = 0;
-  int savedCoupledChemistrySolver = RadiativeTransferCoupledRateSolver;
   RadiativeTransferCoupledRateSolver = FALSE;
+  RadiativeTransferAdaptiveTimestep = FALSE;
 
   while ((dtPhoton > 0.) && RadiativeTransfer && 
 	 (MetaData->Time >= PhotonTime))  {
@@ -102,11 +116,11 @@ int RestartPhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
     EvolvePhotons(MetaData, LevelArray, AllStars, MetaData->Time, 0, FALSE);
 
     PhotonCount = 0;
-    for (level = 0; level < MAX_DEPTH_OF_HIERARCHY; level++) {
-      for (ig = 0; ig < nGrids[level]; ig++) {
-	Grids[level][ig]->GridData->CountPhotonNumber();
-	if (MyProcessorNumber == Grids[level][ig]->GridData->ReturnProcessorNumber())
-	  PhotonCount += Grids[level][ig]->GridData->ReturnNumberOfPhotonPackages();
+    for (_level = 0; _level < MAX_DEPTH_OF_HIERARCHY; _level++) {
+      for (ig = 0; ig < nGrids[_level]; ig++) {
+	Grids[_level][ig]->GridData->CountPhotonNumber();
+	if (MyProcessorNumber == Grids[_level][ig]->GridData->ReturnProcessorNumber())
+	  PhotonCount += Grids[_level][ig]->GridData->ReturnNumberOfPhotonPackages();
       }
     }
 
@@ -117,20 +131,27 @@ int RestartPhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 
     if (LastPhotonCount > 0)
       if (float(PhotonCount-LastPhotonCount)/float(LastPhotonCount) < CONVERGE) {
-	PhotonTime = SavedPhotonTime + dtPhoton*1e-2;
+	PhotonTime = SavedPhotonTime + PFLOAT_EPSILON;
 	break;
       }
 
     if ((PhotonCount == 0 && LastPhotonCount == 0) ||
 	RadiativeTransferAdaptiveTimestep > 0) {
-      PhotonTime = SavedPhotonTime + dtPhoton*1e-2;
+      PhotonTime = SavedPhotonTime + PFLOAT_EPSILON;
       break;
     }
 
     LastPhotonCount = PhotonCount;
 
   } /* ENDWHILE evolve photon */
+
+  /* Delete restart photons */
+
+  for (_level = 0; _level < MAX_DEPTH_OF_HIERARCHY; _level++)
+    for (Temp = LevelArray[_level]; Temp; Temp = Temp->NextGridThisLevel)
+      Temp->GridData->DeletePhotonPackages();  
   
+  RadiativeTransferAdaptiveTimestep = savedAdaptiveTimestep;
   RadiativeTransferCoupledRateSolver = savedCoupledChemistrySolver;
   dtPhoton = SavedPhotonTimestep;
 
@@ -152,22 +173,22 @@ int RestartPhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
   }
 
   if (RadiativeTransferOpticallyThinH2)
-    for (level = 0; level < MAX_DEPTH_OF_HIERARCHY; level++)
+    for (_level = 0; _level < MAX_DEPTH_OF_HIERARCHY; _level++)
 #pragma omp parallel for schedule(guided)
-      for (ig = 0; ig < nGrids[level]; ig++)
-	Grids[level][ig]->GridData->AddH2Dissociation(AllStars, NumberOfSources);
+      for (ig = 0; ig < nGrids[_level]; ig++)
+	Grids[_level][ig]->GridData->AddH2Dissociation(AllStars, NumberOfSources);
 
   if (RadiativeTransferOpticallyThinXray)
-    for (level = 0; level < MAX_DEPTH_OF_HIERARCHY; level++)
+    for (_level = 0; _level < MAX_DEPTH_OF_HIERARCHY; _level++)
 #pragma omp parallel for schedule(guided)
-      for (ig = 0; ig < nGrids[level]; ig++)
-	Grids[level][ig]->GridData->
+      for (ig = 0; ig < nGrids[_level]; ig++)
+	Grids[_level][ig]->GridData->
 	  AddOpticallyThinXrays(AllStars, NumberOfSources);
 
   /* Delete grid lists */
 
-  for (level = 0; level < MAX_DEPTH_OF_HIERARCHY; level++)
-    if (nGrids[level] > 0) delete [] Grids[level];
+  for (_level = 0; _level < MAX_DEPTH_OF_HIERARCHY; _level++)
+    if (nGrids[_level] > 0) delete [] Grids[_level];
 
   return SUCCESS;
 

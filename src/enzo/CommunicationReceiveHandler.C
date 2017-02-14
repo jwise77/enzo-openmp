@@ -70,6 +70,7 @@ int CommunicationReceiveHandler(fluxes **SubgridFluxesEstimate[],
   /* Define a temporary flux holder for the refined fluxes. */
 
   fluxes SubgridFluxesRefined;
+  InitializeFluxes(&SubgridFluxesRefined);
 
   while (ReceivesCompletedToDate < TotalReceives) {
 
@@ -122,12 +123,11 @@ int CommunicationReceiveHandler(fluxes **SubgridFluxesEstimate[],
       if (CommunicationReceiveGridOne[index] != NULL &&
 	  CommunicationReceiveMPI_Request[index] == MPI_REQUEST_NULL) {
 
-// 	if(CommunicationReceiveCallType[index]==2)
-// 	  fprintf(stdout, "%d %d %d %d %d\n", index, 
-// 		CommunicationReceiveCallType[index],
-// 		CommunicationReceiveGridOne[index],
-// 		CommunicationReceiveMPI_Request[index],
-// 		CommunicationReceiveDependsOn[index]);
+	// fprintf(stdout, "::MPI:: %d %d %d %d %d\n", index, 
+ 	// 	CommunicationReceiveCallType[index],
+ 	// 	CommunicationReceiveGridOne[index],
+ 	// 	CommunicationReceiveMPI_Request[index],
+ 	// 	CommunicationReceiveDependsOn[index]);
 
 	/* If this depends on an un-processed receive, then skip it. */
 
@@ -244,7 +244,7 @@ int CommunicationReceiveHandler(fluxes **SubgridFluxesEstimate[],
 	  PP = grid_one->ReturnPhotonPackagePointer();
 	  errcode = grid_one->CommunicationSendPhotonPackages
 	    (grid_two, MyProcessorNumber, ToNumber, FromNumber,
-	     &PP->NextPackage);
+	     &PP);
 	  break;
 #endif /* TRANSFER */
 
@@ -269,6 +269,11 @@ int CommunicationReceiveHandler(fluxes **SubgridFluxesEstimate[],
 	case 19:
 	  level = CommunicationReceiveArgumentInt[0][index];
 	  errcode = grid_one->SetSubgridMarkerFromParent(grid_two, level);
+	  break;
+
+	case 20:
+	  errcode = grid_one->CommunicationSendSubgridMarker(grid_two, 
+							     MyProcessorNumber);
 	  break;
 #endif
 

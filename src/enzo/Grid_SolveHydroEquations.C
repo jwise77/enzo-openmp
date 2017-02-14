@@ -172,10 +172,10 @@ int grid::SolveHydroEquations(int CycleNumber, int NumberOfSubgrids,
     /* Add "real" colour fields (metallicity, etc.) as colour variables. */
 
     int SNColourNum, MetalNum, MBHColourNum, Galaxy1ColourNum, Galaxy2ColourNum,
-      MetalIaNum; 
+      MetalIaNum, MetalIINum; 
 
-    if (this->IdentifyColourFields(SNColourNum, MetalNum, MetalIaNum, MBHColourNum, 
-				   Galaxy1ColourNum, Galaxy2ColourNum) == FAIL)
+    if (this->IdentifyColourFields(SNColourNum, MetalNum, MetalIaNum, MetalIINum,
+                MBHColourNum, Galaxy1ColourNum, Galaxy2ColourNum) == FAIL)
       ENZO_FAIL("Error in grid->IdentifyColourFields.\n");
 
     if (MetalNum != -1) {
@@ -187,6 +187,7 @@ int grid::SolveHydroEquations(int CycleNumber, int NumberOfSubgrids,
     }
 
     if (MetalIaNum       != -1) colnum[NumberOfColours++] = MetalIaNum;
+    if (MetalIINum       != -1) colnum[NumberOfColours++] = MetalIINum;
     if (SNColourNum      != -1) colnum[NumberOfColours++] = SNColourNum;
     if (MBHColourNum     != -1) colnum[NumberOfColours++] = MBHColourNum;
     if (Galaxy1ColourNum != -1) colnum[NumberOfColours++] = Galaxy1ColourNum;
@@ -258,7 +259,16 @@ int grid::SolveHydroEquations(int CycleNumber, int NumberOfSubgrids,
     } // if(TestProblemData.GloverChemistryModel)
 
 
-    /* Add shock/cosmic ray variables as a colour variable. */
+    /* Add Cosmic Ray Energy Density as a colour variable. */
+    if(CRModel){
+      int DensNum, GENum, Vel1Num, Vel2Num, Vel3Num, TENum, CRNum;
+      if (this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num,
+                       Vel3Num, TENum, CRNum ) == FAIL )
+        ENZO_FAIL("Error in IdentifyPhysicalQuantities.\n");
+      colnum[NumberOfColours++] = CRNum;
+    } // end CR if
+
+    /* Add shock variables as a colour variable. */
 
     if(ShockMethod){
       int MachNum, PSTempNum,PSDenNum;
@@ -401,22 +411,110 @@ int grid::SolveHydroEquations(int CycleNumber, int NumberOfSubgrids,
     /* Prepare Gravity. */
 
     int GravityOn = 0, FloatSize = sizeof(float);
-    if (SelfGravity || UniformGravity || PointSourceGravity)
+    if (SelfGravity || UniformGravity || PointSourceGravity || DiskGravity || ExternalGravity )
       GravityOn = 1;
 #ifdef TRANSFER
     if (RadiationPressure)
       GravityOn = 1;
 #endif    
 
+    //Some setup for MHDCT
+
+    float *MagneticFlux[3][2];
+    if ( UseMHDCT ) {
+        MHDCT_ConvertEnergyToConservedS();  //Energy toggle.  Probably will be removed soon.
+        for(field=0;field<3;field++){
+            if(ElectricField[field] == NULL ) 
+                ElectricField[field] = new float[ElectricSize[field]];
+            for(i=0;i<ElectricSize[field]; i++) ElectricField[field][i] = 0.0;
+        }
+        for(field=0;field<3;field++){
+          MagneticFlux[field][0] = new float[2*MagneticSize[field]];
+          MagneticFlux[field][1] =  MagneticFlux[field][0] +MagneticSize[field];
+          for (i=0; i< 2*MagneticSize[field]; i++) MagneticFlux[field][0][i] = 0.0;
+        }
+        CenterMagneticField();
+#ifdef BIERMANN
+        
+        /* Compute Units. */
+        
+        float DensityUnits = 1, LengthUnits = 1, TemperatureUnits = 1, TimeUnits = 1,
+          VelocityUnits = 1, BFieldUnits = 1;
+        
+        if(ComovingCoordinates){
+          if (MHDCosmologyGetUnits(&DensityUnits, &LengthUnits, &TemperatureUnits,
+          		     &TimeUnits, &VelocityUnits, Time,&BFieldUnits) == FAIL) {
+            fprintf(stderr, "Error in MHD CosmologyGetUnits.\n");
+            return FAIL;
+          }
+          /* Transform speed of light, hydrogen mass and electron change in units of ENZO */
+          // Biermann battery constants in cgs units, convert to enzo units later
+          float speedoflight = clight/VelocityUnits;
+          float hydrogenmass = mh/DensityUnits*POW(LengthUnits,3);
+          float electroncharge = 4.803e-10*
+                TimeUnits*BFieldUnits/(speedoflight*DensityUnits*POW(LengthUnits,3));
+          float chi=1.0;
+        }
+#endif //BIERMANN
+    }//UseMHDCT
+
+
+
+    float* Fluxes[3] = {MagneticFlux[0][0],MagneticFlux[1][0],MagneticFlux[2][0]};
+    int CurlStart[3] = {0,0,0}, 
+    CurlEnd[3] = {GridDimension[0]-1,GridDimension[1]-1,GridDimension[2]-1};
+    if ( UseMHDCT ){
+        if (HydroMethod == MHD_Li){
+          this->SolveMHD_Li(CycleNumber, NumberOfSubgrids, SubgridFluxes, 
+                CellWidthTemp, GridGlobalStart, GravityOn, 
+                NumberOfColours, colnum, Fluxes);
+        }
+
+        if( HydroMethod != NoHydro )
+            switch( MHD_CT_Method ){
+                case CT_BalsaraSpicer: //1
+                case CT_Athena_LF:     //2
+                case CT_Athena_Switch: //3
+                    ComputeElectricField(dtFixed, Fluxes);
+                    break;
+                case CT_Biermann:      //4
+#ifdef BIERMANN
+                    FORTRAN_NAME(create_e_biermann)(MagneticFlux[0][0], MagneticFlux[1][0], MagneticFlux[2][0],
+                                 MagneticFlux[0][1], MagneticFlux[1][1], MagneticFlux[2][1],
+                                 ElectricField[0], ElectricField[1], ElectricField[2],
+                                 CellWidthTemp[0], CellWidthTemp[1], CellWidthTemp[2],
+                                 BaryonField[DensNum],BaryonField[GENum],
+                                 GridDimension, GridDimension +1, GridDimension +2,
+                                 GridStartIndex, GridEndIndex,
+                                 GridStartIndex+1, GridEndIndex+1,
+                                 GridStartIndex+2, GridEndIndex+2, &dtFixed, &UseDT,
+                                 &Gamma, &speedoflight,&hydrogenmass, &electroncharge, &chi, a);
+                    break;
+#endif //BIERMANN
+                case CT_None:
+                default:
+                    if(MyProcessorNumber == ROOT_PROCESSOR )
+                        fprintf(stderr, "Warning: No CT method used with MHD_Li.\n");
+                break;
+            }
+        MHD_UpdateMagneticField(level, NULL, TRUE);
+        CenterMagneticField();
+
+        MHDCT_ConvertEnergyToSpecificS();
+        for(field=0;field<3;field++){
+          delete [] MagneticFlux[field][0];
+        }
+    }
     /* Call Solver on this grid.
        Notice that it is hard-wired for three dimensions, but it does
        the right thing for < 3 dimensions. */
     /* note: Start/EndIndex are zero based */
         
     if (HydroMethod == PPM_DirectEuler)
-      this->SolvePPM_DE(CycleNumber, NumberOfSubgrids, SubgridFluxes, 
-			CellWidthTemp, GridGlobalStart, GravityOn, 
-			NumberOfColours, colnum);
+      this->SolvePPM_DE(CycleNumber, NumberOfSubgrids, SubgridFluxes,
+                        CellWidthTemp, GridGlobalStart, GravityOn,
+                        NumberOfColours, colnum,
+                        MinimumSupportEnergyCoefficient);
 
     /* PPM LR has been withdrawn. */
 
@@ -449,11 +547,11 @@ int grid::SolveHydroEquations(int CycleNumber, int NumberOfSubgrids,
 
     if (HydroMethod == Zeus_Hydro)
       if (this->ZeusSolver(GammaField, UseGammaField, CycleNumber, 
-			   CellWidthTemp[0], CellWidthTemp[1], CellWidthTemp[2],
-			   GravityOn, NumberOfSubgrids, GridGlobalStart,
-			   SubgridFluxes,
-			   NumberOfColours, colnum, LowestLevel,
-			   MinimumSupportEnergyCoefficient) == FAIL)
+               CellWidthTemp[0], CellWidthTemp[1], CellWidthTemp[2],
+               GravityOn, NumberOfSubgrids, GridGlobalStart,
+               SubgridFluxes,
+               NumberOfColours, colnum, LowestLevel,
+               MinimumSupportEnergyCoefficient) == FAIL)
 	ENZO_FAIL("ZeusSolver() failed!\n");
 	
 
@@ -468,12 +566,63 @@ int grid::SolveHydroEquations(int CycleNumber, int NumberOfSubgrids,
   /* If we're supposed to be outputting on Density, we need to update
      the current maximum value of that Density. */
 
-    if(OutputOnDensity == 1){
+    if (OutputOnDensity == 1 || 
+        StopFirstTimeAtDensity > 0. || 
+        StopFirstTimeAtMetalEnrichedDensity > 0.) {
       int DensNum = FindField(Density, FieldType, NumberOfBaryonFields);
-      for(i = 0; i < size; i++)
+
+      int MetalNum = 0, SNColourNum = 0;
+      int MetalFieldPresent = FALSE;
+      float *MetalPointer;
+      float *TotalMetals = NULL;
+
+      if (StopFirstTimeAtMetalEnrichedDensity > 0.) {
+
+        // First see if there's a metal field (so we can conserve species in
+        // the solver)
+        MetalNum = FindField(Metallicity, FieldType, NumberOfBaryonFields);
+        SNColourNum = FindField(SNColour, FieldType, NumberOfBaryonFields);
+        MetalFieldPresent = (MetalNum != -1 || SNColourNum != -1);
+
+        // Double check if there's a metal field when we have metal cooling
+        if (MetalFieldPresent == FALSE) {
+          ENZO_FAIL("StopFirstTimeAtMetalEnrichedDensity is set, but no metal field is present.\n");
+        }
+
+        /* If both metal fields (Pop I/II and III) exist, create a field
+           that contains their sum */
+
+        if (MetalNum != -1 && SNColourNum != -1) {
+          TotalMetals = new float[size];
+          for (int i = 0; i < size; i++)
+            TotalMetals[i] = BaryonField[MetalNum][i] + BaryonField[SNColourNum][i];
+          MetalPointer = TotalMetals;
+        } // ENDIF both metal types
+        else {
+          if (MetalNum != -1)
+            MetalPointer = BaryonField[MetalNum];
+          else if (SNColourNum != -1)
+            MetalPointer = BaryonField[SNColourNum];
+        } // ENDELSE both metal types
+ 
+      }
+
+      for (i = 0; i < size; i++) {
+
         CurrentMaximumDensity =
-            max(BaryonField[DensNum][size], CurrentMaximumDensity);
-    }
+            max(BaryonField[DensNum][i], CurrentMaximumDensity);
+
+        if (StopFirstTimeAtMetalEnrichedDensity > 0. &&
+            (MetalPointer[i] / BaryonField[DensNum][i]) > EnrichedMetalFraction) {
+          CurrentMaximumMetalEnrichedDensity = 
+            max(BaryonField[DensNum][i], CurrentMaximumMetalEnrichedDensity);
+        }
+
+      }
+
+      delete [] TotalMetals;
+
+    } // end: if (OutputOnDensity == 1 || ...
 
   }  // end: if (NumberOfBaryonFields > 0)
 

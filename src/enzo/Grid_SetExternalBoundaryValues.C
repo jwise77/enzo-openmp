@@ -47,6 +47,13 @@ int grid::SetExternalBoundaryValues(ExternalBoundary *Exterior)
     if (Exterior->SetShockPoolBoundary(Time) == FAIL) {
       ENZO_FAIL("Error in exterior->SetShockPoolBoundary.\n");
     }
+
+  /* For Galaxy Sim w/ ICM Wind, compute the new inflow boundary conditions. */
+
+  if (ProblemType == 31)
+    if (Exterior->SetGalaxySimulationBoundary(Time) == FAIL) {
+      ENZO_FAIL("Error in exterior->SetGalaxySimulationBoundary.\n");
+    }
  
   /* For the DoubleMach problem, set the bew inflow boundary conditions. */
  
@@ -104,7 +111,33 @@ int grid::SetExternalBoundaryValues(ExternalBoundary *Exterior)
     }
  
   }
+
+  /*If there's a magnetic field, set it as well.
+    It is still unclear if this is a valid way to do things: 
+    The Pseudo-Vector nature of B poses a problem that I haven't sorted out all the way.
+    Currently, it's being set as if it were a Plain vector.*/
+
+  if(UseMHDCT && NumberOfBaryonFields > 0)
+    {
+
+      if(Exterior->SetMagneticBoundary(GridRank, GridDimension, GridOffset,
+				       GridStartIndex, GridEndIndex,
+				       MagneticField[0],Bfield1) == FAIL)
+	ENZO_FAIL("Error in Exterior->SetMagneticBoundary, B1.");
+
+      if(Exterior->SetMagneticBoundary(GridRank, GridDimension, GridOffset,
+				       GridStartIndex, GridEndIndex,
+				       MagneticField[1],Bfield2) == FAIL)
+	ENZO_FAIL("Error in Exterior->SetMagneticBoundary, B2.");
+
+      if(Exterior->SetMagneticBoundary(GridRank, GridDimension, GridOffset,
+				       GridStartIndex, GridEndIndex,
+				       MagneticField[2],Bfield3) == FAIL)
+	ENZO_FAIL("Error in Exterior->SetMagneticBoundary, B3.");
+
  
+    }// if(UseMHDCT)
+
   /* Now we handle the particles (if any). */
  
   if (NumberOfParticles > 0)

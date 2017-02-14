@@ -20,21 +20,32 @@ Hierarchy Control Parameters
     indicate that a cell should be refined, then it is flagged. For
     cosmology simulations, methods 2 and 4 are probably most useful.
     Note that some methods have additional parameters which are
-    described below. Default: 1
+    described below. For more information about specific methods, see the
+    method paper. Default: 1
 
-    :: 
-
-       1 - refine by slope		       9 - refine by shear
-       2 - refine by baryon mass	       10 - refine by optical depth (in RT calculation)
-       3 - refine by shocks 		       11 - refine by resistive length (in MHD calculation)
-       4 - refine by particle mass	       12 - refine by defined region "MustRefineRegion"
-       5 - refine by baryon overdensity	       13 - refine by metallicity
-       	  (currently disabled)                 14 - refine around shockwaves
-       6  - refine by Jeans length             16 - refine by Jeans length from the inertial tensor	       
-       7  - refine if (cooling time < cell width/sound speed)
-       8 - refine by must-refine particles
-       100 - avoid refinement based on ForbiddenRefinement field
-       101 - avoid refinement in regions defined in "AvoidRefineRegion" 
+    ================== ==========================================================
+    CellFlaggingMethod Description
+    ================== ==========================================================
+    1                  Refine by slope
+    2                  Refine by baryon mass
+    3                  Refine by shocks
+    4                  Refine by particle mass
+    5                  Refine by baryon overdensity
+    6                  Refine by Jeans length
+    7                  Refine if (cooling time < cell width/sound speed)
+    8                  Refine by must-refine particles
+    9                  Refine by shear
+    10                 Refine by optical depth (in RT calculation)
+    11                 Refine by resistive length (in MHD calculation)
+    12                 Refine by defined region "MustRefineRegion"
+    13                 Refine by metallicity
+    14                 Refine by shockwaves (found w/shock finder)
+    15                 Refine by normalized second derivative
+    16                 Refine by Jeans length from the inertial tensor
+    19                 Refine by metal mass
+    100                Avoid refinement based on ForbiddenRefinement field
+    101                Avoid refinement in regions defined in "AvoidRefineRegion"
+    ================== ==========================================================
 
 ``RefineRegionLeftEdge``, ``RefineRegionRightEdge`` (external)
     These two parameters control the region in which refinement is
@@ -113,10 +124,12 @@ Hierarchy Control Parameters
     makes the refinement super-Lagrangian, while positive values are
     sub-Lagrangian. There are up to 9 values specified here, as per
     the above two parameters. Default: 0.0
-``SlopeFlaggingFields[#]`` (external)
+``SlopeFlaggingFields`` (external)
     If ``CellFlaggingMethod`` is 1, and you only want to refine on the
-    slopes of certain fields then you can enter the number IDs of the
-    fields. Default: Refine on slopes of all fields.
+    slopes of certain fields then you can enter the
+    :ref:`Field Type IDs <Field_List_Reference>` of the fields you want,
+    separating the IDs with a space. Up to 7 Field Type IDs can be 
+    specified. Default: Refine on slopes of all fields.
 ``MinimumSlopeForRefinement`` (external)
     If ``CellFlaggingMethod`` is 1, then local gradients are used as the
     refinement criteria. All variables are examined and the relative
@@ -138,10 +151,23 @@ Hierarchy Control Parameters
     detection. Default: 0.1
 ``MinimumShearForRefinement`` (external)
     It is the minimum shear above which a refinement occurs if the CellFlaggingMethod is appropriately set. Default: 0
+``OldShearMethod`` (external)
+    If using the shear refinement criterion, setting this variable to 1 enables 
+    the old method for calculating the shear criterion, which actually 
+    calculates it based on shear and vorticity and makes some assumptions
+    about the simulations (c_s=1, etc.).  However, this is necessary
+    if you want to reproduce some of the old enzo results 
+    (e.g. Kritsuk et al. 2006).  Default: 0
 ``MetallicityRefinementMinMetallicity`` (external)
-    This is the threshold metallicity (in units of solar metallicity)
-    above which cells must be refined to a minimum level of
-    ``MetallicityRefinementMinLevel``. Default: 1.0e-5
+    For method 13 (metallicity refinement), this is the threshold
+    metallicity (in units of solar metallicity) above which cells must
+    be refined to a minimum level of
+    ``MetallicityRefinementMinLevel``.  For method 19 (metal mass),
+    this flags cells for refinement when the metal mass is above the
+    necessary baryon mass (method 2) for refinement multiplied by this
+    parameter.  Behaves similarly to refinement by baryon mass but
+    focuses on metal-enriched regions.  In units of solar metallicity.
+    Default: 1.0e-5
 ``MetallicityRefinementMinLevel`` (external)
     Sets the minimum level (maximum cell size) to which a cell enriched
     with metal above a level set by ``MetallicityRefinementMinMetallicity``
@@ -155,18 +181,61 @@ Hierarchy Control Parameters
     The minimum shock velocity required to refine a level when using ShockwaveRefinement. Default: 1.0e7 (cm/s)
 ``ShockwaveRefinementMaxLevel`` (external)
     The maximum level to refine to using the ShockwaveRefinement criteria. Default: 0 (not used)
+``SecondDerivativeFlaggingFields`` (external)
+    The field indices (list of up to 7) that are used for the normalized second
+    derivative refinement criteria. Default: INT_UNDEFINED
+``MinimumSecondDerivativeForRefinement`` (external)
+    The value of the second derivative above which a cell will be flagged for
+    refinement. Each value in this list (of up to 7 values) should be between
+    0.0 and 1.0.  Values between 0.3-0.8 are recommended.  Default: 0.3
+``SecondDerivativeEpsilon`` (external)
+    Used to avoid refining around oscillations/fluctuations in the normalized
+    second derivative refinement method.  The higher the value, the more it
+    will filter out.  For fluid instability simulations, a value of ~0.01 is
+    good.  For full-physics simulations, values around ~0.2 are recommended. Be
+    aware that fluctuations on this scale in initial conditions may cause
+    immediate refinement to the maximum level.  Default: 1.0e-2
 ``RefineByJeansLengthSafetyFactor`` (external)
     If the Jeans length refinement criterion (see ``CellFlaggingMethod``)
     is being used, then this parameter specifies the number of cells
     which must cover one Jeans length. Default: 4
 ``JeansRefinementColdTemperature`` (external)
     If the Jeans length refinement criterion (see ``CellFlaggingMethod``)
-    is being used, and this parameter is greater than zero, it will be
-    used in place of the temperature in all cells. Default: -1.0
+    is being used, and this parameter is greater than zero, this
+    temperature will be used in all cells when calculating the Jeans
+    length.  If it is less than or equal to zero, it will be used as a
+    temperature floor when calculating the Jeans length. Default: -1.0
 ``RefineByResistiveLengthSafetyFactor`` (external)
     Resistive length is defined as the curl of the magnetic field over
     the magnitude of the magnetic field. We make sure this length is
     covered by this number of cells. i.w. The resistive length in a MHD simulation should not be smaller than CellWidth * RefineByResistiveLengthSafetyFactor.  Default: 2.0
+``MustRefineParticlesCreateParticles`` (external)
+    This parameter will flag dark matter particles in cosmological 
+    initial conditions as ``MustRefineParticles``.  If ``CellFlaggingMethod`` 
+    8 is set, AMR will be restricted to cells surrounding 
+    ``MustRefineParticles``.  There are several different modes for creating
+    ``MustRefineParticles`` with this parameter described below.  Further 
+    information on how to use dark matter ``MustRefineParticles`` in 
+    cosmological simulations can be found here (link).  Default: 0
+
+::
+
+   1 - If the user specifies ``MustRefineParticlesLeftEdge`` and 
+       ``MustRefineParticlesRightEdge``, dark matter particles within the 
+       specified region are flagged.  Otherwise, the code looks for an ascii 
+       input file called MustRefineParticlesFlaggingList.in that contains a list
+       of particle ids to be flagged.  The ids in this list must be sorted in 
+       acending order.
+   2 - For use with ellipsodial masking in MUSIC inititial conditions.  This 
+       setting uses traditional static grids for intermediate resolution levels.  
+       MUSIC will generate RefinementMask files and the ``ParticleTypeName`` 
+       parameter should be set to the name of these files.
+   3 - Same as setting 2, except refinement on intermediate levels is not 
+       constrained by static grids.  Instead, refinement around dark matter 
+       particles is allowed down to the level of a particle's generation level.  
+       Refinement beyond this level is allowed around particles within the MUSIC 
+       ellipsoidal making region.
+
 ``MustRefineParticlesRefineToLevel`` (external)
     The maximum level on which ``MustRefineParticles`` are required to
     refine to. Currently sink particles and MBH particles are required
@@ -182,6 +251,14 @@ Hierarchy Control Parameters
     information. Default: 0 (FALSE)
 ``MustRefineParticlesMinimumMass`` (external)
     This was an experimental parameter to set a minimum for ``MustRefineParticles``.  Default: 0.0
+``MustRefineParticlesRegionLeftEdge`` (external)
+    Bottom-left corner of a region in which dark matter particles are flagged 
+    as ``MustRefineParticles`` in nested cosmological simulations.  To be used with 
+    ``MustRefineParticlesCreateParticles`` = 1.  Default: 0.0 0.0 0.0
+``MustRefineParticlesRegionRightEdge`` (external)
+    Top-right corner of a region in which dark matter particles are flagged 
+    as ``MustRefineParticles`` in nested cosmological simulations.  To be used with 
+    ``MustRefineParticlesCreateParticles`` = 1.  Default: 0.0 0.0 0.0
 ``MustRefineRegionMinRefinementLevel`` (external)
     Minimum level to which the rectangular solid volume defined by
     ``MustRefineRegionLeftEdge`` and ``MustRefineRegionRightEdge`` will be
@@ -213,6 +290,39 @@ Hierarchy Control Parameters
     These two parameters specify the two corners of a region that
     limits refinement to a certain level (see the previous
     parameter). Default: none
+``MultiRefineRegionGeometry[#]`` (external)
+    This parameter (and the ones following) describe a physical region of the simulation box for which an 
+    independent refinement maximum and minimum (separate from ``MaximumRefinementLevel``) can be specified.
+``MultiRefineRegionGeometry[#]`` controls the geometry of the refined volume. Currently implemented 
+    geometries are: (0) a rectangular region, (1) a ring of infinite height and (2) a cylinder of infinite 
+    height. Up to 20 multi-refined regions may be defined (number the same as for ``StaticRefineRegion``)
+    and each multi-refined region is labelled starting from zero. Default: -1 (no multi-regions)
+``MultiRefineRegionLeftEdge[#]``, ``MultiRefineRegionRightEdge[#]`` (external)
+    Used when ``MultiRefineRegionGeometry[#] = 0`` and specifies the two corners in code units of a 
+    rectagular multi-region with a given maximum and minimum refinement level. Default: none.
+``MultiRefineRegionCenter[#]`` (external)
+    Used when ``MultiRefineRegionGeometry[#] = 1 or 2`` and specifies the center of the ring or cylinder 
+    in code units. Default: none
+``MultiRefineRegionRadius[#]`` (external)
+    Used when ``MultiRefineRegionGeometry[#] = 1 or 2`` and specifies the radius of the ring or cylinder 
+    in code units. In the case of the ring, this marks the distance to the middle of the ring's thickness. 
+    The thickness is specified with ``MultiRefineRegionWidth``. Default: none
+``MultiRefineRegionWidth[#]`` (external)
+    Used when ``MultiRefineRegionGeometry[#] = 1`` and specifies the width (thickness) of the ring in 
+    code units. Default: none
+``MultiRefineRegionOrientation[#]`` (external)
+    Used when ``MultiRefineRegionGeometry[#] = 1 or 2`` and is a unit vector pointing along the vertical
+    direction of the ring or cylinder. Default: none.
+``MultiRefineRegionStaggeredRefinement[#]`` (external)
+    Used when ``MultiRefineRegionGeometry[#] = 1 or 2``. To avoid a sharp change in refinement at the edge of
+    the ring or cylinder, the allowed refinement is staggered from the maximum allowed value outside the 
+    region, ``MultiRefineRegionOuterMaximumLevel``, to the maximum allowed refinement inside the region, 
+    ``MultiRefineRegionMaximumLevel``. This parameter is the length over which that staggering occurs in 
+    code units. Default: 0.0 (no staggering)
+``MultiRefineRegionMaximumLevel[#]``, ``MultiRefineRegionMinimumLevel[#]`` (external)
+    Maximum and minimum allowed refinement inside the region. Default: ``MaximumRefinementLevel``, 0
+``MultiRefineRegionMaximumOuterLevel``, ``MultiRefineRegionMinimumOuterLevel`` (external)
+    Maximum and minimum allowed refinement outside all regions. Default: ``MaximumRefinementLevel``, 0
 ``MinimumEfficiency`` (external)
     When new grids are created during the rebuilding process, each grid
     is split up by a recursive bisection process that continues until a
@@ -231,6 +341,10 @@ Hierarchy Control Parameters
     The minimum length of the edge of a subgrid.  See :ref:`running_large_simulations`. Default: 6
 ``MaximumSubgridSize`` (external)
     The maximum size (volume) of a subgrid.  See :ref:`running_large_simulations`. Default: 32768
+``CriticalGridRatio`` (external)
+    Critical grid ratio above which subgrids will be split in half along their 
+    long axis prior to being split by the second derivative of their 
+    signature.  Default: 3.0
 ``SubgridSizeAutoAdjust`` (external)
     See :ref:`running_large_simulations`.  Default: 1 (TRUE)
 ``OptimalSubgridsPerProcessor`` (external)
@@ -256,6 +370,28 @@ Hierarchy Control Parameters
     When restarting a simulation, this parameter resets the processor number of each root grid to be sequential.  All child grids are assigned to the processor of their parent grid.  Only implemented for LoadBalancing = 1.  Default = 0
 ``NumberOfRootGridTilesPerDimensionPerProcessor`` (external)
     Splits the root grid into 2^(dimensions*this parameter) grids per MPI process.  Default: 1
+``UserDefinedRootGridLayout`` (external)
+   A three element array.  Splits the root grid into ``N`` subgrids where ``N``
+   is the product of the supplied values.  The first entry corresponds to the
+   number of root grid decompositions along the x axis of the simulation, the
+   second element the number of decompositions along the y axis, and the third
+   the number of decompositions along the z axis.
+
+   This parameter is only used if all three elements of the array are set to a
+   value different from the dummy default value.  If that is the case the root
+   grid will be *manually* decomposed and the value supplied for
+   ``NumberOfRootGridTilesPerDimensionPerProcessor`` will be ignored.  This is
+   most useful when an automatic root grid decomposition is inefficient (for
+   example, in a deeply nested isolated galaxy simulation).
+
+   This parameter should be used with caution since it is possible to get into
+   a situation where there are fewer grids than CPU cores.  Normally this can
+   never happen since there will always be at least one root grid tile for every
+   CPU.  Most simulations assume you will be running with as many root grid
+   tiles as CPUs - if you instead opt to reduce the number of root grid tiles
+   per CPU to a number less than one, Enzo might break in unpredictable ways.
+   Default: -99999 -99999 -99999
+
 ``FastSiblingLocatorEntireDomain`` (external)
     In zoom-in calculations, the fast sibling locator doesn't need to search the entire domain.  Turning this parameter on restricts the finder to the inner nested grid.  Currently broken.  Default: 0
 ``MoveParticlesBetweenSiblings`` (external)
