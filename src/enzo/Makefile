@@ -139,7 +139,7 @@ MACHNOTES:
 	else \
 		$(LD) $(LDFLAGS) -o $*.exe $*.o $(OBJS_LIB) $(LIBS) >> $(OUTPUT) \
 		2>&1 ; \
-	fi)	
+	fi)
 	@(if [ -e $@ ] ; then  \
 		echo "Success!" ; \
 		echo "Compiled enzo from " ; \
