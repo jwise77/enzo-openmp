@@ -14,6 +14,13 @@
 # Default Enzo object files
 #-----------------------------------------------------------------------
 
+# Commented out becuase it was missing in merged version (need to
+#	readd it when I merge again). JHW (15 May 2018)
+#
+#	Grid_FlagCellsToBeRefinedByMustRefineParticles.o \
+#
+
+
 OBJS_CONFIG_LIB = \
   MHDLoopInit.o \
   Grid_MHDLoopInitGrid.o \
@@ -432,7 +439,6 @@ OBJS_CONFIG_LIB = \
 	Grid_FlagCellsToBeRefinedByMass.o \
 	Grid_FlagCellsToBeRefinedByMetallicity.o \
 	Grid_FlagCellsToBeRefinedByMetalMass.o \
-#	Grid_FlagCellsToBeRefinedByMustRefineParticles.o \
 	Grid_FlagCellsToBeRefinedByMustRefineRegion.o \
 	Grid_FlagCellsToBeRefinedByResistiveLength.o \
 	Grid_FlagCellsToBeRefinedByShear.o \

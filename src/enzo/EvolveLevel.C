@@ -491,10 +491,8 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 
     /* Compute stochastic force field via FFT from the spectrum. */
     if (DrivenFlowProfile) {
-        if (ComputeStochasticForcing(MetaData, Grids, NumberOfGrids) == FAIL) {
-            fprintf(stderr, "Error in ComputeStochasticForcing.\n");
-            return FAIL;
-        }
+      if (ComputeStochasticForcing(MetaData, Grids, NumberOfGrids) == FAIL)
+	ENZO_FAIL("Error in ComputeStochasticForcing.\n");
     }
 
     /* ------------------------------------------------------- */
@@ -616,10 +614,8 @@ int EvolveLevel(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 
       /* Compute and Apply Cosmic Ray Diffusion */
       if(CRModel && CRDiffusion){
-        if(Grids[grid1]->GridData->ComputeCRDiffusion() == FAIL){
-          fprintf(stderr, "Error in grid->ComputeCRDiffusion.\n");
-          return FAIL;
-        } // end ComputeCRDiffusion if
+        if(Grids[grid1]->GridData->ComputeCRDiffusion() == FAIL)
+	  ENZO_FAIL("Error in grid->ComputeCRDiffusion.\n");
       }// end CRDiffusion if
 
       /* Gravity: clean up AccelerationField. */

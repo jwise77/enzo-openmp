@@ -179,7 +179,7 @@ c -------------------------------------------------------------------
      &                k19, k22, k24, k25, k26, k31,
      &                k50, k51, k52, k53, k54, k55,
      &                k56, k13dd, k24shield, k25shield, k26shield,
-     &                h31shield, h2dust, ncrn, ncrd1, ncrd2,
+     &                k31shield, h2dust, ncrn, ncrd1, ncrd2,
      &                t1, t2, tdef, logtem, indixe, 
      &                dom, coolunit, tbase1, xbase1, dx_cgs, iradtrans,
      &                kdissH2I, itmask)
@@ -534,7 +534,7 @@ c               endif
             if (ispecies > 1 .and. ithreebody == 0) then
                do i = is+1, ie+1
                   if (itmask(i)) then
-                  nh = min(HI(i,j,k)*dom, 1.e9_RKINDp)
+                  nh = min(HI(i,j,k)*dom, 1.e9_RKIND)
                   k13(i) = tiny
                   if (tgas1d(i) .ge. 500._RKIND .and.
      &                tgas1d(i) .lt. 1.e6_RKIND) then
@@ -784,7 +784,7 @@ c               endif
      &                     HMp, H2Ip, H2IIp, DIp, DIIp, HDIp,
      &                     dedot_prev, HIdot_prev,
      &                     iradtrans, irt_honly, kphHI, kphHeI, kphHeII,
-     &                     itmask)
+     &                     kdissH2I, itmask)
 c -------------------------------------------------------------------
 
       implicit NONE
@@ -807,7 +807,8 @@ c -------------------------------------------------------------------
 
 !     Radiation fields
 
-      R_PREC    kphHI(in,jn,kn), kphHeI(in,jn,kn), kphHeII(in,jn,kn)
+      R_PREC    kphHI(in,jn,kn), kphHeI(in,jn,kn), kphHeII(in,jn,kn),
+     &     kdissH2I(in,jn,kn)
 
 !     Rate values
 
