@@ -52,7 +52,6 @@ int grid::WalkPhotonPackage(PhotonPackageEntry **PP,
 			    float TimeUnits, float LightSpeed,
 			    float MinimumPhotonFlux) {
 
-  const float erg_eV = 1.602176e-12;
   const float c_cgs = 2.99792e10;
   const float EnergyThresholds[] = {13.6, 24.6, 54.4, 11.2};
   const float PopulationFractions[] = {1.0, 0.25, 0.25, 1.0};

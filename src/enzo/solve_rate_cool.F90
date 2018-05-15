@@ -505,7 +505,7 @@
                   if (abs(dedot(i)) .lt. tiny) &
                        dedot(i) = min(REAL(tiny,RKIND),de(i,j,k))
                   if (abs(HIdot(i)) .lt. tiny) &
-                       HIdot(i) = min(READ(tiny,RKIND),HI(i,j,k))
+                       HIdot(i) = min(REAL(tiny,RKIND),HI(i,j,k))
 
 !              If the net rate is almost perfectly balanced then set
 !                  it to zero (since it is zero to available precision)
@@ -735,7 +735,7 @@
                  HMp, H2Ip, H2IIp, DIp, DIIp, HDIp,            &
                  dedot_prev, HIdot_prev,                       &
                  iradtrans, irt_honly, kphHI, kphHeI, kphHeII, &
-                 itmask)
+                 kdissH2I, itmask)
 
 !           Add the timestep to the elapsed time for each cell and find
 !            minimum elapsed time step in this row

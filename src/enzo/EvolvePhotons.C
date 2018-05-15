@@ -582,7 +582,6 @@ int EvolvePhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 	  Temp->GridData->FinalizeRadiationFields();
     END_PERF(8);
 
-<<<<<<< variant A
     /* Set the optically-thin H2 dissociation rates */
 
     START_PERF();
@@ -613,6 +612,7 @@ int EvolvePhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 	      
               if (Temp->GridData->GrackleWrapper() == FAIL){
                 ENZO_FAIL("Error in GrackleWrapper.\n");
+
               }
               continue;
             }
@@ -624,74 +624,6 @@ int EvolvePhotons(TopGridData *MetaData, LevelHierarchyEntry *LevelArray[],
 	} /* ENDFOR grids */
     END_PERF(9);
 
->>>>>>> variant B
-    /* Set the optically-thin H2 dissociation rates */
-
-    START_PERF();
-    if (RadiativeTransferOpticallyThinH2)
-      for (lvl = 0; lvl < MAX_DEPTH_OF_HIERARCHY-1; lvl++)
-	for (Temp = LevelArray[lvl]; Temp; Temp = Temp->NextGridThisLevel)
-	  Temp->GridData->AddH2Dissociation(AllStars, NumberOfSources);
-    END_PERF(10);
-
-    START_PERF();
-    if (RadiativeTransferCoupledRateSolver)
-      for (lvl = 0; lvl < MAX_DEPTH_OF_HIERARCHY-1; lvl++)
-	for (Temp = LevelArray[lvl]; Temp; Temp = Temp->NextGridThisLevel)
-	  if (Temp->GridData->RadiationPresent() == TRUE) {
-
-	    int RTCoupledSolverIntermediateStep = TRUE;
-
-#ifdef USE_GRACKLE
-            if (grackle_data->use_grackle == TRUE){
-              grackle_data->radiative_transfer_intermediate_step = (Eint32) RTCoupledSolverIntermediateStep;
-
-              if (Temp->GridData->GrackleWrapper() == FAIL){
-                ENZO_FAIL("Error in GrackleWrapper.\n");
-              }
-              continue;
-            }
-#endif // USE_GRACKLE
-
-	    Temp->GridData->SolveRateAndCoolEquations(RTCoupledSolverIntermediateStep);
-
-	  } /* ENDIF radiation */
-    END_PERF(9);
-
-####### Ancestor
-    START_PERF();
-    for (lvl = 0; lvl < MAX_DEPTH_OF_HIERARCHY-1; lvl++)
-      for (Temp = LevelArray[lvl]; Temp; Temp = Temp->NextGridThisLevel)
-	if (Temp->GridData->RadiationPresent() == TRUE) {
-
-	  if (RadiativeTransferCoupledRateSolver && 
-	      RadiativeTransferOpticallyThinH2)
-	    Temp->GridData->AddH2Dissociation(AllStars);
-
-	  if (RadiativeTransferCoupledRateSolver) {
-	    int RTCoupledSolverIntermediateStep = TRUE;
-	    Temp->GridData->SolveRateAndCoolEquations(RTCoupledSolverIntermediateStep);
-	  }
-
-	  if (RadiativeTransferCoupledRateSolver &&
-	      RadiativeTransferInterpolateField)
-	    Temp->GridData->DeleteInterpolatedFields();
-
-	} /* ENDIF radiation */
-    END_PERF(9);
-
-    /* For the non-coupled (i.e. cells without radiation) rate & energy
-       solver, we have to set the H2 dissociation rates */
-
-    START_PERF();
-    if (RadiativeTransferOpticallyThinH2)
-      for (lvl = 0; lvl < MAX_DEPTH_OF_HIERARCHY-1; lvl++)
-	for (Temp = LevelArray[lvl]; Temp; Temp = Temp->NextGridThisLevel)
-	  if (Temp->GridData->RadiationPresent() == FALSE)
-	    Temp->GridData->AddH2Dissociation(AllStars);
-    END_PERF(10);
-
-======= end
     /* Clean up temperature field */
 
     if (RadiationXRayComptonHeating)

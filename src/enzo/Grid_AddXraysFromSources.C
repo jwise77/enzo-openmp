@@ -23,6 +23,7 @@
 #include "Hierarchy.h"
 #include "CosmologyParameters.h"
 #include "Star.h"
+#include "phys_constants.h"
 
 int GetUnits(float *DensityUnits, float *LengthUnits,
 	     float *TemperatureUnits, float *TimeUnits,
@@ -34,9 +35,6 @@ int grid::AddXraysFromSources(Star *AllStars)
 
   const float EnergyThresholds[] = {13.6, 24.6, 54.4};
   const float PopulationFractions[] = {1.0, 0.25, 0.25};
-  const float erg_eV = 1.602176e-12;
-  const double clight = 2.99792e10;
-  const double pc = 3.086e18;
 
   Star *cstar;
   FLOAT DomainWidth[MAX_DIMENSION];
@@ -191,7 +189,7 @@ int grid::AddXraysFromSources(Star *AllStars)
       
       /* Get energy bins and SED */
 
-      if (cstar->ComputePhotonRates(nbins, energies, Luminosity) == FAIL) {
+      if (cstar->ComputePhotonRates(TimeUnits, nbins, energies, Luminosity) == FAIL) {
 	ENZO_FAIL("Error in ComputePhotonRates.\n");
       }
 

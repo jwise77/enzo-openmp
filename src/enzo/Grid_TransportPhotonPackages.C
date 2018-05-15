@@ -270,9 +270,9 @@ int grid::TransportPhotonPackages(int level, int finest_level,
   ListOfPhotonsToMove *ThreadedMoveList = new ListOfPhotonsToMove;
   ThreadedMoveList->NextPackageToMove = NULL;
 
-  const float clight = 2.9979e10;
+  const float c_cgs = 2.9979e10;
   float LightCrossingTime = 1.7320508 * (VelocityUnits) /
-    (clight * RadiativeTransferPropagationSpeedFraction);  // sqrt(3)=1.73
+    (c_cgs * RadiativeTransferPropagationSpeedFraction);  // sqrt(3)=1.73
   FLOAT EndTime;
   if (RadiativeTransferAdaptiveTimestep)
     EndTime = PhotonTime+LightCrossingTime;
