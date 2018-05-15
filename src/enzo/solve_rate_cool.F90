@@ -503,9 +503,9 @@
 !              Bound from below to prevent numerical errors
                
                   if (abs(dedot(i)) .lt. tiny) &
-                       dedot(i) = min(tiny,de(i,j,k))
+                       dedot(i) = min(REAL(tiny,RKIND),de(i,j,k))
                   if (abs(HIdot(i)) .lt. tiny) &
-                       HIdot(i) = min(tiny,HI(i,j,k))
+                       HIdot(i) = min(READ(tiny,RKIND),HI(i,j,k))
 
 !              If the net rate is almost perfectly balanced then set
 !                  it to zero (since it is zero to available precision)
@@ -524,7 +524,7 @@
 !                electron or HI fraction which is in equilibrium with high
 !                individual terms (which all nearly cancel).
 
-               if (iter .gt. 50) then
+               if (iter > 50) then
                   dedot(i) = min(abs(dedot(i)), abs(dedot_prev(i)))
                   HIdot(i) = min(abs(HIdot(i)), abs(HIdot_prev(i)))
                endif
@@ -586,6 +586,7 @@
 !              Output some debugging information if required
 !#ifndef _OPENMP
 !$omp critical
+              if (dtit(i)/dt > 1.e-2_RKIND .and. iter > 800
                    abs((dt-ttot(i))/dt) .gt. 1.e-3_RKIND) then
                  write(4,1000) iter,i,j,k,dtit(i), &
                       ttot(i),dt,de(i,j,k),dedot(i),HI(i,j,k),HIdot(i), &
@@ -653,14 +654,14 @@
 !                 dtit(i) = min(real(abs(0.1_RKIND*energy/edot(i))), 
 !     &                        dt-ttot(i), dtit(i))
 !              else
-               dtit(i) = min(real(abs(0.1_RKIND*energy/edot(i)),RKIND), &
+               dtit(i) = min(REAL(abs(0.1_RKIND*energy/edot(i)),RKIND), &
                     dt-ttot(i), dtit(i))
 !              endif
 
                if (dtit(i) .ne. dtit(i)) & !#####
                     write(6,*) 'HUGE dtit :: ', energy, edot(i), dtit(i), &
                     dt, ttot(i), abs(0.1_RKIND*energy/edot(i)), &
-                    real(abs(0.1_RKIND*energy/edot(i)),RKIND)
+                    REAL(abs(0.1_RKIND*energy/edot(i)),RKIND)
 
 #define FORTRAN_DEBUG
 #ifdef FORTRAN_DEBUG
@@ -677,7 +678,8 @@
 
 !#ifndef _OPENMP
 !$omp critical
-                    .or. iter .gt. itmax-100) .and. &
+               if (((dtit(i)/dt < 1.e-2 .and. iter > 800)
+               .or. iter .gt. itmax-100) .and. &
                     abs((dt-ttot(i))/dt) .gt. 1.e-3_RKIND) &
                     write(3,2000) i,j,k,iter,ge(i,j,k),edot(i),tgas(i), &
                     energy,de(i,j,k),ttot(i),d(i,j,k),e(i,j,k),dtit(i)
@@ -742,7 +744,7 @@
             do i = is+1, ie+1
                ttot(i) = min(ttot(i) + dtit(i), dt)
                if (abs(dt-ttot(i)) .lt. 0.001_RKIND*dt) itmask(i) = .false.
-               if (ttot(i).lt.ttmin) ttmin = ttot(i)
+               if (ttot(i) < ttmin) ttmin = ttot(i)
             enddo
 
 !           If all cells are done (on this slice), then exit
