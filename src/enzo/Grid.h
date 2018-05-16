@@ -9,7 +9,6 @@
 /  PURPOSE:
 /
 ************************************************************************/
-
 #ifndef GRID_DEFINED__
 #define GRID_DEFINED__
 #include "ProtoSubgrid.h"
@@ -21,6 +20,8 @@
 #include "Star.h"
 #include "FOF_allvars.h"
 #include "MemoryPool.h"
+#include "list.h"
+#include "hydro_rk/SuperNova.h"
 #ifdef ECUDA
 #include "hydro_rk/CudaMHD.h"
 #endif
@@ -57,6 +58,9 @@ struct HierarchyEntry;
 //  int Number;
 // int Type;
 //};
+
+
+
 
 extern int CommunicationDirection;
 int FindField(int f, int farray[], int n);
@@ -103,10 +107,6 @@ class grid
 
   int NumberOfSubgrids;
   fluxes **SubgridFluxStorage;
-
-  // MHD data
-  float *divB;
-  float *gradPhi[MAX_DIMENSION];
 
   float  CourantSafetyNumber;                       // Hydro parameter
   int    PPMFlatteningParameter;                    // PPM parameter
@@ -1280,6 +1280,8 @@ gradient force to gravitational force for one-zone collapse test. */
    float* AccessKPhHeII();
    float* AccessGammaHeII();
    float* AccessKDissH2I();
+   float* AccessKPhHM();
+   float* AccessKDissH2II();
    float* AccessGravPotential();
    float* AccessAcceleration0();
    float* AccessAcceleration1();
@@ -1746,7 +1748,7 @@ int CreateParticleTypeGrouping(hid_t ptype_dset,
 
   int IdentifyColourFields(int &SNColourNum, int &MetalNum, 
 			   int &MetalIaNum, int &MetalIINum, int &MBHColourNum,
-			   int &Galaxy1ColourNum, int &Galaxy2ColourNum);
+		           int &Galaxy1ColourNum, int &Galaxy2ColourNum);
 
   /* Identify Multi-species fields. */
 
@@ -2663,7 +2665,8 @@ int inteuler(int idim,
 
   int IdentifyRadiativeTransferFields(int &kphHINum, int &gammaNum,
 				      int &kphHeINum, int &kphHeIINum, 
-				      int &kdissH2INum);
+				      int &kdissH2INum, int &kphHMNum,
+				      int &kdissH2IINum);
 
 #ifdef TRANSFER
 #include "PhotonGrid_Methods.h"
@@ -2742,6 +2745,8 @@ int inteuler(int idim,
 
   int ClusterSMBHFeedback(int level);
   int ClusterSMBHEachGridGasMass(int level);
+  int OldStarFeedback();
+  int AddStellarWind();
   int SetNumberOfColours(void);
   int SaveSubgridFluxes(fluxes *SubgridFluxes[], int NumberOfSubgrids,
                         float *Flux3D[], int flux, float fluxcoef, float dt);
@@ -3037,6 +3042,7 @@ int inteuler(int idim,
                              float Energy0,  float Energy1,
                              float Velocity0[], float Velocity1[],
                              float B0[], float B1[],
+                             float MetalDensity0, float MetalDensity1, int UseMetal, float MetalOffsetInX,
                              float Radius, float MHDBlastCenter[], int LongDimension,
                              float PerturbAmplitude, int PerturbMethod, float PerturbWavelength[],
                              int InitStyle);
@@ -3051,6 +3057,11 @@ int inteuler(int idim,
   int MHDCT_ConvertEnergyToSpecificC();
   int MHDCT_ConvertEnergyToConservedS();
   int MHDCT_ConvertEnergyToSpecificS();
+
+  //List of SuperNova objects that each grid needs to keep track of                                                                      
+  
+  List<SuperNova> SuperNovaList;
+  
 
 };
 

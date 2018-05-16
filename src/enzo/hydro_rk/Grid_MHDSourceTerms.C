@@ -19,6 +19,7 @@
 #include "macros_and_parameters.h"
 #include "typedefs.h"
 #include "global_data.h"
+#include "list.h"
 #include "Fluxes.h"
 #include "GridList.h"
 #include "ExternalBoundary.h"
@@ -54,52 +55,10 @@ int grid::MHDSourceTerms(float **dU)
     }
   
 
-#ifdef DEDNER_SOURCE
-  /* Dedner MHD formulation source terms */
-
-  FLOAT dtdx = dtFixed/CellWidth[0][0]/a,
-    dtdy = (GridRank > 1) ? dtFixed/CellWidth[1][0]/a : 0.0,
-    dtdz = (GridRank > 2) ? dtFixed/CellWidth[2][0]/a : 0.0;  
-  float Bx, By, Bz;
-  float coeff = 1.;
-
-  //  if (EOSType == 3)  coeff = 0.; // turn of adding dissipated B-field to Etot if isothermal (worth a try ...)
-
-  int n = 0, igrid, igridyp1, igridym1, igridzp1, igridzm1;
-  for (int k = GridStartIndex[2]; k <= GridEndIndex[2]; k++) {
-    for (int j = GridStartIndex[1]; j <= GridEndIndex[1]; j++) {
-      for (int i = GridStartIndex[0]; i <= GridEndIndex[0]; i++, n++) {
-	igrid = i+(j+k*GridDimension[1])*GridDimension[0];
-
-	Bx = BaryonField[B1Num][igrid];
-	By = BaryonField[B2Num][igrid];
-	Bz = BaryonField[B3Num][igrid];
-	/*
-	igridyp1 = i+(j+1+k*GridDimension[1])*GridDimension[0];
-	igridym1 = i+(j-1+k*GridDimension[1])*GridDimension[0];
-	igridzp1 = i+(j+(k+1)*GridDimension[1])*GridDimension[0];
-	igridzm1 = i+(j+(k-1)*GridDimension[1])*GridDimension[0];
-	divB[n] = 0.5*(BaryonField[B1Num][igrid+1]-BaryonField[B1Num][igrid-1])*dtdx +
-	  0.5*(BaryonField[B2Num][igridyp1]-BaryonField[B2Num][igridym1])*dtdy +
-	  0.5*(BaryonField[B3Num][igridzp1]-BaryonField[B3Num][igridzm1])*dtdz; 
-	gradPhi[0][n] = 0.5*(BaryonField[PhiNum][igrid+1]-BaryonField[PhiNum][igrid-1])*dtdx;
-	gradPhi[1][n] = 0.5*(BaryonField[PhiNum][igridyp1]-BaryonField[PhiNum][igridym1])*dtdy;
-	gradPhi[2][n] = 0.5*(BaryonField[PhiNum][igridzp1]-BaryonField[PhiNum][igridzm1])*dtdz;
-	*/ 
-	dU[iS1  ][n] -= divB[n]*Bx * coeff;
-	dU[iS2  ][n] -= divB[n]*By * coeff;
-	dU[iS3  ][n] -= divB[n]*Bz * coeff;
-	dU[iEtot][n] -= coeff * (Bx*gradPhi[0][n] + By*gradPhi[1][n] + Bz*gradPhi[2][n]);
-
-
-      }
-    }
-  }
-#endif
 
   if (DualEnergyFormalism) {
     int igrid, ip1, im1, jp1, jm1, kp1, km1;
-    FLOAT coef = 1.;
+    FLOAT coef = 0.5;
     FLOAT dtdx = coef*dtFixed/CellWidth[0][0]/a,
       dtdy = (GridRank > 1) ? coef*dtFixed/CellWidth[1][0]/a : 0.0,
       dtdz = (GridRank > 2) ? coef*dtFixed/CellWidth[2][0]/a : 0.0;
@@ -397,7 +356,52 @@ int grid::MHDSourceTerms(float **dU)
       }
     }
   }
+  
+if((UseSupernovaSeedFieldSourceTerms == 1)) {
 
+  int n = 0, igrid;
+  int iden=FindField(Density, FieldType, NumberOfBaryonFields);
+  snsf_source_terms S;
+  List<SuperNova>::Iterator *P = this->SuperNovaList.begin();
+  FLOAT cell_center[3];
+  FLOAT dx, dy, dz, dist_to_sn;
+  int temp =1;
+  int entered = 0;
+
+  for (int k = GridStartIndex[2]; k <= GridEndIndex[2]; k++) {
+    for (int j = GridStartIndex[1]; j <= GridEndIndex[1]; j++) {
+      for (int i = GridStartIndex[0]; i <= GridEndIndex[0]; i++, n++) {
+	igrid = i+(j+k*GridDimension[1])*GridDimension[0];
+
+	cell_center[0] = CellLeftEdge[0][i] + 0.5*CellWidth[0][i];
+	cell_center[1] = CellLeftEdge[1][j] + 0.5*CellWidth[1][j];
+	cell_center[2] = CellLeftEdge[2][k] + 0.5*CellWidth[2][k];
+
+	while(P != this->SuperNovaList.end()){
+	  dx = P->get()->getPosition()[0] - cell_center[0];
+	  dy = P->get()->getPosition()[1] - cell_center[1];
+	  dz = P->get()->getPosition()[2] - cell_center[2];
+
+	  dist_to_sn = sqrt(dx*dx + dy*dy + dz*dz);
+	  if (dist_to_sn < 1.1*SupernovaSeedFieldRadius){
+	    S = P->get()->getSourceTerms(dx, dy, dz, Time);
+   	    double rho = BaryonField[DensNum][igrid];
+
+	    dU[iBx][n] += S.dbx*dtFixed;
+	    dU[iBy][n] += S.dby*dtFixed;
+	    dU[iBz][n] += S.dbz*dtFixed;
+	    dU[iEtot][n] += S.dUtot*dtFixed;
+
+	  }
+	  P = P->next();
+	}// End of SuperNovaList iteration                                                                                           
+      } // End of k for-loop                                                                                                         
+    } // End of j for-loop                                                                                                           
+  } // End of i for-loop                                                                                                             
+
+} // End of UseSuperNovaSeedFieldSourceTerms scope                                                                                   
+
+  
 
   return SUCCESS;
 }

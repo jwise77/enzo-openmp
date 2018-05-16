@@ -130,10 +130,10 @@ int grid::ComputeCoolingTime(float *cooling_time, int CoolingTimeOnly)
  
   /* Find photo-ionization fields */
 
-  int kphHINum, kphHeINum, kphHeIINum, kdissH2INum;
+  int kphHINum, kphHeINum, kphHeIINum, kdissH2INum, kphHMNum, kdissH2IINum;
   int gammaNum;
   IdentifyRadiativeTransferFields(kphHINum, gammaNum, kphHeINum, 
-				  kphHeIINum, kdissH2INum);
+				  kphHeIINum, kdissH2INum, kphHMNum, kdissH2IINum);
 
   /* Get easy to handle pointers for each variable. */
  
@@ -268,6 +268,7 @@ int grid::ComputeCoolingTime(float *cooling_time, int CoolingTimeOnly)
     my_fields.grid_dimension = g_grid_dimension;
     my_fields.grid_start     = g_grid_start;
     my_fields.grid_end       = g_grid_end;
+    my_fields.grid_dx        = this->CellWidth[0][0];
 
     /* now add in the baryon fields */
     my_fields.density         = density;

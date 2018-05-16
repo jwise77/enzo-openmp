@@ -127,6 +127,14 @@ int CommunicationLoadBalancePhotonGrids(HierarchyEntry **Grids[], int *NumberOfG
   CommunicationSumValues(ComputeTime, TotalNumberOfGrids);
   CommunicationAllSumValues(&Nonzero, 1);
 
+  /* Don't load balance if there are 0/1 grids with radiation */
+
+  if (Nonzero <= 1) {
+    delete [] ComputeTime;
+    delete [] NewProcessorNumber;
+    return SUCCESS;
+  }
+  
   if (MyProcessorNumber == ROOT_PROCESSOR) {
 
   /* Find grids with non-zero amount of work and only load balance
@@ -175,7 +183,6 @@ int CommunicationLoadBalancePhotonGrids(HierarchyEntry **Grids[], int *NumberOfG
   /* Now we know where the grids are going, transfer them. */
 
   index2 = 0;
-  if (Nonzero > 1)
   for (lvl = MIN_LEVEL; lvl < MAX_DEPTH_OF_HIERARCHY; lvl++) {
 
   GridsMoved = 0;
