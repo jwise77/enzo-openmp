@@ -65,10 +65,10 @@ int grid::AddXraysFromSources(Star *AllStars)
 
   /* Get photo-ionization fields */
 
-  int kphHINum, kphHeINum, kphHeIINum, kdissH2INum;
-  int gammaNum;
+  int kphHINum, kphHeINum, kphHeIINum, kdissH2INum, kphHMNum,
+    kdissH2IINum, gammaNum;
   IdentifyRadiativeTransferFields(kphHINum, gammaNum, kphHeINum, kphHeIINum, 
-				  kdissH2INum);
+				  kdissH2INum, kphHMNum, kdissH2IINum);
   const int kphNum[] = {kphHINum, kphHeINum, kphHeIINum};
 
   /* If using cosmology, get units. */

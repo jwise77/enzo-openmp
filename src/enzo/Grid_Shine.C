@@ -49,7 +49,8 @@ int grid::Shine(RadiationSourceEntry *RadiationSource)
   int count = 0;
   int min_level = RadiativeTransferInitialHEALPixLevel;
   int NumberOfThreads = NumberOfCores / NumberOfProcessors;
-
+  int PackagesPerThread;
+  
   /* base number of rays to star with: for min_level=2 this is 192
      photon packages per source */
 
