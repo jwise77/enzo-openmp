@@ -17,6 +17,7 @@
 #include <stdlib.h>
  
 #include "ErrorExceptions.h"
+#include "list.h"
 #include "macros_and_parameters.h"
 #include "typedefs.h"
 #include "global_data.h"
@@ -24,6 +25,7 @@
 #include "GridList.h"
 #include "ExternalBoundary.h"
 #include "Grid.h"
+#include "hydro_rk/SuperNova.h"
  
 grid::grid()
 {
@@ -114,11 +116,6 @@ grid::grid()
   ParticleMassFlaggingField     = NULL;
   MassFlaggingField             = NULL;
   FlaggingField                 = NULL;
-
-  divB = NULL;
-  for (int dim=0; dim<3; dim++) {
-    gradPhi[dim] = NULL;
-  }
 
 #ifdef TRANSFER
   NumberOfPhotonPackages = 0;
@@ -217,4 +214,6 @@ grid::grid()
      (April 2012) only implemented for H2REG_STAR and completely
      ignored for all other star makers. */
   MakeStars = 0;
+    if (UseSupernovaSeedFieldSourceTerms == 1)  List<SuperNova>  SuperNovaList;
+
 }

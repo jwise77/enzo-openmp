@@ -1,4 +1,5 @@
 #define DEBUG 0
+#define MYPROC MyProcessorNumber == ProcessorNumber
 /***********************************************************************
 /
 /  GRID CLASS (TRANSPORT PHOTON PACKAGES)
@@ -108,14 +109,13 @@ int grid::TransportPhotonPackages(int level, int finest_level,
   int RaySegNum = FindField(RaySegments, FieldType, NumberOfBaryonFields);
 
   /* Get units. */
-
   double MassUnits, RT_Units;
   float LengthUnits, TimeUnits, TemperatureUnits, VelocityUnits, 
     DensityUnits;
-
   if (GetUnits(&DensityUnits, &LengthUnits, &TemperatureUnits,
-	       &TimeUnits, &VelocityUnits, PhotonTime) == FAIL)
+	       &TimeUnits, &VelocityUnits, PhotonTime) == FAIL) {
     ENZO_FAIL("Error in GetUnits.\n");
+  }
   MassUnits = (double) DensityUnits * POW(LengthUnits, 3.0);
   RT_Units = (double) TimeUnits * POW(LengthUnits, -3.0);
 
@@ -123,13 +123,13 @@ int grid::TransportPhotonPackages(int level, int finest_level,
      a(t), and Modify the photon propagation speed by this
      parameter */
 
-  const float c_cgs = 2.99792e10;
   float LightSpeed;
   LightSpeed = RadiativeTransferPropagationSpeedFraction * 
-    (c_cgs/VelocityUnits);
+    (clight/VelocityUnits);
 
   float DomainWidth[MAX_DIMENSION];
-  for (dim = 0; dim < MAX_DIMENSION; dim++)
+  //double FinestCellVolume = pow(RefineBy, -3*(finest_level-level));
+  for (dim = 0; dim < MAX_DIMENSION; dim++) {
     DomainWidth[dim] = DomainRightEdge[dim] - DomainLeftEdge[dim];
 
   // if (DEBUG) fprintf(stdout,"TransportPhotonPackage: initialize fields.\n");
@@ -180,9 +180,7 @@ int grid::TransportPhotonPackages(int level, int finest_level,
     MinimumPhotonFlux *= (float) ((RT_Units / TimeUnits) * (MassUnits / mh) * dtPhoton / 
 				  (10*RecombinationTime));
   }
-  // float MinimumPhotonFlux = (DensityUnits/mh) * FinestCellVolume * dtPhoton /
-  //   (PhotonTime * RadiativeTransferHubbleTimeFraction);
-
+  
   count = 0;
   while (PP->NextPackage != NULL) { 
     count++;
@@ -274,20 +272,29 @@ int grid::TransportPhotonPackages(int level, int finest_level,
   float LightCrossingTime = 1.7320508 * (VelocityUnits) /
     (c_cgs * RadiativeTransferPropagationSpeedFraction);  // sqrt(3)=1.73
   FLOAT EndTime;
+ if (MYPROC && DEBUG) {
+   printf("RadiativeTransferRayMaximumLength = %g\t  RadiativeTransferPropagationSpeedFraction= %g\n",  RadiativeTransferRayMaximumLength, RadiativeTransferPropagationSpeedFraction);
+   printf("LightCrossingTime = %f\n", LightCrossingTime);
+ }
   if (RadiativeTransferAdaptiveTimestep)
     EndTime = PhotonTime+LightCrossingTime;
   else
     EndTime = PhotonTime+dtPhoton-PFLOAT_EPSILON;
 
   while (PP != NULL) {
-
+    int retval = 0;
     if (PP->PreviousPackage == NULL)
       printf("Bad package.\n");
     DeleteMe = FALSE;
     PauseMe = FALSE;
     MoveToGrid = NULL;
     AdvancePhotonPointer = TRUE;
-
+    if (MYPROC && DEBUG) {
+      if(prev_type != PP->Type) {
+	fprintf(stdout, "%s: Radiation type = %ld\n", __FUNCTION__, PP->Type);
+	prev_type = PP->Type;
+      }
+    }
     if ((PP->CurrentTime) < EndTime) {
       WalkPhotonPackage(&PP,
 			&MoveToGrid, ParentGrid, CurrentGrid, Grids0, nGrids0,

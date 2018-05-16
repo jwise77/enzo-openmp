@@ -120,9 +120,16 @@ Radiative Transfer (Ray Tracing) Parameters
     slowly. Default: 1.
 ``RadiativeTransferOpticallyThinH2`` (external)
     Set to 1 to include an optically-thin H_2 dissociating
-    (Lyman-Werner) radiation field. Only used if ``MultiSpecies`` > 1. If
-    ``MultiSpecies`` > 1 and this option is off, the Lyman-Werner radiation
-    field will be calculated with ray tracing. Default: 1.
+    (Lyman-Werner) radiation field. This also causes the HM and H2II
+    to be dissociated in an opticall thin fashion. Only used if ``MultiSpecies`` > 1. If
+   ``MultiSpecies`` > 1 and this option is off, the Lyman-Werner radiation
+   field will be calculated with ray tracing. Default: 1.
+``RadiativeTransferOpticallyThinH2CharLength`` (external)
+This parameter controls the length over which the Jeans length self shielding
+prescription is performed. The default value is 0.25 which means that the
+characteristic length for applying self shielding of LW photons is over one
+quarter of the Jeans length. Leaving at this value is probably a good idea
+unless there is a strong reason to modify it. Default: 0.25.
 ``RadiativeTransferSplitPhotonPackage`` (external)
     Once photons are past this radius, they can no longer split. In
     units of kpc. If this value is negative (by default), photons can
@@ -174,6 +181,16 @@ Radiative Transfer (Ray Tracing) Parameters
     When turned on, the grids are load balanced based on the number of ray segments traced.  The grids are moved to different processors only for the radiative transfer solver.  Default: 0
 ``RadiativeTransferHydrogenOnly`` (external)
     When turned on, the photo-ionization fields are only created for hydrogen.  Default: 0
+``RadiativeTransferRayMaximumLength`` (external)
+    The maximum length that a ray is allowed to travel in box units. Thde default value is 1.7320608 (i.e. sqrt(3.0) so a ray covers the entire periodic region with some doubling up inevitably. Setting it to smaller value will reduce the computational cost.
+    Default: 1.7320608
+``RadiativeTransferUseH2Shielding`` (external)
+    Should H2 self-shielding be used.  Default: True
+``RadiativeTransferH2ShieldType`` (external)
+    If H2 shielding is turned on then which kind should we use. Setting this value to 0 used the self-shielding fit as per
+    Draine & Bertoldi (1996). Setting this value to 1 uses the fit as per Wolcott-Green et al. (2011). Default: 0
+``RadiativeTransferH2IIDiss`` (external)
+    Should we also account for the photo-dissoication of H2II which occurs for radiation between 0.76eV and 13.6 eV.  Default: True
 ``RadiationXRaySecondaryIon`` (external)
     Set to 1 to turn on secondary ionizations and reduce heating from
     X-ray radiation (Shull & van Steenberg 1985). Currently only BH and
