@@ -66,13 +66,20 @@ int GetUnits(float *DensityUnits, float *LengthUnits,
 
 int grid::WalkPhotonPackage(PhotonPackageEntry **PP, 
 			    grid **MoveToGrid, grid *ParentGrid, grid *CurrentGrid, 
-			    grid **Grids0, int nGrids0, int DensNum, int DeNum,
-			    int HINum, int HeINum, int HeIINum, int H2INum, 
+			    grid **Grids0, int nGrids0,
+			    int DensNum, int DeNum,
+			    int HINum, int HIINum,
+			    int HeINum, int HeIINum, int H2INum,
+			    int H2IINum, int HMNum,
 			    int kphHINum, int gammaNum, int kphHeINum, 
-			    int kphHeIINum, 
-			    int kdissH2INum, int RPresNum1, int RPresNum2, 
+			    int kphHeIINum, int kphHMNum,
+			    int kdissH2INum, int kdissH2IINum,
+			    int RPresNum1, int RPresNum2, 
 			    int RPresNum3, int RaySegNum, int &DeleteMe, 
 			    int &PauseMe, int &DeltaLevel, float LightCrossingTime,
+			    float DensityUnits, 
+			    float TemperatureUnits, float VelocityUnits, 
+			    float LengthUnits, float TimeUnits, 
 			    float LightSpeed, int level, float MinimumPhotonFlux) {
 
   const float EnergyThresholds[] = {13.6, 24.6, 54.4, 11.2, 0.755, 100.0};
@@ -116,13 +123,15 @@ int grid::WalkPhotonPackage(PhotonPackageEntry **PP,
 	    "\t %p %p %p\n",
 	    (*PP), (*PP)->PreviousPackage, PhotonPackages)
   }
-  /* Get units. */
-  float LengthUnits, TimeUnits, TemperatureUnits, VelocityUnits, 
-    DensityUnits;
-  if (GetUnits(&DensityUnits, &LengthUnits, &TemperatureUnits,
-	       &TimeUnits, &VelocityUnits, PhotonTime) == FAIL) {
-    ENZO_FAIL("Error in GetUnits.\n");
-  }
+
+  // /* Get units. */
+  // float LengthUnits, TimeUnits, TemperatureUnits, VelocityUnits, 
+  //   DensityUnits;
+  // if (GetUnits(&DensityUnits, &LengthUnits, &TemperatureUnits,
+  // 	       &TimeUnits, &VelocityUnits, PhotonTime) == FAIL) {
+  //   ENZO_FAIL("Error in GetUnits.\n");
+  // }
+  
   // Convert from #/s to RT units
   double LConv = (double) TimeUnits / POW(LengthUnits,3);
   /* This controls the splitting condition, where this many rays must
@@ -270,28 +279,30 @@ int grid::WalkPhotonPackage(PhotonPackageEntry **PP,
   else
     EndTime = PhotonTime + dtPhoton;
   
-  /* Find fields: density, total energy, velocity1-3. */
+  // /* Find fields: density, total energy, velocity1-3. */
 
-  int DensNum, GENum, Vel1Num, Vel2Num, Vel3Num, TENum;
-  if (this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num, 
-				       Vel3Num, TENum) == FAIL) {
-    ENZO_FAIL("Error in IdentifyPhysicalQuantities.\n");
-  }
-  /* Find the species fields */
-  int DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum, HMNum, H2INum, H2IINum,
-    DINum, DIINum, HDINum;
-  IdentifySpeciesFields(DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum,
-			HMNum, H2INum, H2IINum, DINum, DIINum, HDINum);
+  // int DensNum, GENum, Vel1Num, Vel2Num, Vel3Num, TENum;
+  // if (this->IdentifyPhysicalQuantities(DensNum, GENum, Vel1Num, Vel2Num, 
+  // 				       Vel3Num, TENum) == FAIL) {
+  //   ENZO_FAIL("Error in IdentifyPhysicalQuantities.\n");
+  // }
+  // /* Find the species fields */
+  // int DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum, HMNum, H2INum, H2IINum,
+  //   DINum, DIINum, HDINum;
+  // IdentifySpeciesFields(DeNum, HINum, HIINum, HeINum, HeIINum, HeIIINum,
+  // 			HMNum, H2INum, H2IINum, DINum, DIINum, HDINum);
   
-  /* Find radiative transfer fields. */
-  int kphHINum, gammaNum, kphHeINum, kphHeIINum, kdissH2INum, kphHMNum, kdissH2IINum;
-  IdentifyRadiativeTransferFields(kphHINum, gammaNum, kphHeINum, 
-				  kphHeIINum, kdissH2INum, kphHMNum, kdissH2IINum);
+  // /* Find radiative transfer fields. */
+  // int kphHINum, gammaNum, kphHeINum, kphHeIINum, kdissH2INum, kphHMNum, kdissH2IINum;
+  // IdentifyRadiativeTransferFields(kphHINum, gammaNum, kphHeINum, 
+  // 				  kphHeIINum, kdissH2INum, kphHMNum, kdissH2IINum);
+  
   const int kphNum[] = {kphHINum, kphHeINum, kphHeIINum};  //MultiSpecies = 1
+
   /* Find the pressure fields */
-  int RPresNum1, RPresNum2, RPresNum3;
-  if (RadiationPressure)
-    IdentifyRadiationPressureFields(RPresNum1, RPresNum2, RPresNum3);
+  // int RPresNum1, RPresNum2, RPresNum3;
+  // if (RadiationPressure)
+  //   IdentifyRadiationPressureFields(RPresNum1, RPresNum2, RPresNum3);
   /* Get the correct baryon fields (make it pretty) */
 
   type = (*PP)->Type;

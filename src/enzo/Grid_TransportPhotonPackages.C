@@ -98,9 +98,10 @@ int grid::TransportPhotonPackages(int level, int finest_level,
 
   /* Find radiative transfer fields. */
 
-  int kphHINum, gammaNum, kphHeINum, kphHeIINum, kdissH2INum;
-  IdentifyRadiativeTransferFields(kphHINum, gammaNum, kphHeINum, 
-				  kphHeIINum, kdissH2INum);
+  int kphHINum, kphHeINum, kphHeIINum, kdissH2INum, kphHMNum,
+    kdissH2IINum, gammaNum;
+  IdentifyRadiativeTransferFields(kphHINum, gammaNum, kphHeINum, kphHeIINum, 
+				  kdissH2INum, kphHMNum, kdissH2IINum);
 
   int RPresNum1, RPresNum2, RPresNum3;
   if (RadiationPressure)
@@ -129,7 +130,7 @@ int grid::TransportPhotonPackages(int level, int finest_level,
 
   float DomainWidth[MAX_DIMENSION];
   //double FinestCellVolume = pow(RefineBy, -3*(finest_level-level));
-  for (dim = 0; dim < MAX_DIMENSION; dim++) {
+  for (dim = 0; dim < MAX_DIMENSION; dim++)
     DomainWidth[dim] = DomainRightEdge[dim] - DomainLeftEdge[dim];
 
   // if (DEBUG) fprintf(stdout,"TransportPhotonPackage: initialize fields.\n");
@@ -263,6 +264,7 @@ int grid::TransportPhotonPackages(int level, int finest_level,
   int trcount = 0;
   int AdvancePhotonPointer;
   int DeleteMe, DeltaLevel, PauseMe;
+  int prev_type;
 
   grid *MoveToGrid;
   ListOfPhotonsToMove *ThreadedMoveList = new ListOfPhotonsToMove;
@@ -290,7 +292,7 @@ int grid::TransportPhotonPackages(int level, int finest_level,
     MoveToGrid = NULL;
     AdvancePhotonPointer = TRUE;
     if (MYPROC && DEBUG) {
-      if(prev_type != PP->Type) {
+      if (prev_type != PP->Type) {
 	fprintf(stdout, "%s: Radiation type = %ld\n", __FUNCTION__, PP->Type);
 	prev_type = PP->Type;
       }
@@ -298,13 +300,13 @@ int grid::TransportPhotonPackages(int level, int finest_level,
     if ((PP->CurrentTime) < EndTime) {
       WalkPhotonPackage(&PP,
 			&MoveToGrid, ParentGrid, CurrentGrid, Grids0, nGrids0,
-			DensNum, DeNum, HINum, HeINum, HeIINum, H2INum,
-			kphHINum, gammaNum, kphHeINum, 
-			kphHeIINum, kdissH2INum, RPresNum1,
-			RPresNum2, RPresNum3, RaySegNum,
+			DensNum, DeNum, HINum, HIINum, HeINum, HeIINum, H2INum,
+			H2IINum, HMNum, kphHINum, gammaNum, kphHeINum, 
+			kphHeIINum, kphHMNum, kdissH2INum, kdissH2IINum,
+			RPresNum1, RPresNum2, RPresNum3, RaySegNum,
 			DeleteMe, PauseMe, DeltaLevel, LightCrossingTime,
 			DensityUnits, TemperatureUnits, VelocityUnits, 
-			LengthUnits, TimeUnits, LightSpeed, MinimumPhotonFlux);
+			LengthUnits, TimeUnits, LightSpeed, level, MinimumPhotonFlux);
       tcount++;
     } else {
 
