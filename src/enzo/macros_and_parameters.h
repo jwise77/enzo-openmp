@@ -593,6 +593,7 @@ typedef long long int   HDF5_hid_t;
 #define END_GRID_TIMER ;
 #define START_LOAD_TIMER ;
 #define END_LOAD_TIMER(A) ;
+#define END_LOAD_TIMER(A,B) ;
 #endif  
 
 #endif

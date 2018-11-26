@@ -39,7 +39,9 @@ double HilbertCurve3D(FLOAT *coord);
 Eint32 compare_hkey(const void *a, const void *b);
 int CommunicationBroadcastValues(Eint32 *Values, int Number, int BroadcastProcessor);
 int CommunicationBroadcastValues(Eint64 *Values, int Number, int BroadcastProcessor);
+#ifdef USE_MPI
 int CommunicationBufferPurge(void);
+#endif
 int CommunicationReceiveHandler(fluxes **SubgridFluxesEstimate[] = NULL,
 				int NumberOfSubgrids[] = NULL,
 				int FluxFlag = FALSE,
@@ -391,7 +393,9 @@ int LoadBalanceHilbertCurve(HierarchyEntry *GridHierarchyPointer[],
     /* Receive grids */
 
     CommunicationReceiveHandler();
+#ifdef USE_MPI
     CommunicationBufferPurge();
+#endif
 
     if (debug && GridsMoved > 0) {
       tt1 = ReturnWallTime();
@@ -432,7 +436,9 @@ int LoadBalanceHilbertCurve(HierarchyEntry *GridHierarchyPointer[],
     /* Receive grids */
 
     CommunicationReceiveHandler();
+#ifdef USE_MPI
     CommunicationBufferPurge();
+#endif
 
     /* Update processor numbers */
   

@@ -88,10 +88,12 @@ int grid::SolvePPM_DE(int CycleNumber, int NumberOfSubgrids,
     // Update in x-direction
     if ((n % GridRank == 0) && nxz > 1) {
       if (UseCUDA == 0) {
+/*
 #pragma omp parallel for shared(NumberOfSubgrids, SubgridFluxes, GridGlobalStart, \
 				CellWidthTemp, GravityOn, NumberOfColours, \
  				colnum, Pressure) default(none) schedule(static) \
                 private(current_error)
+*/
       for (k = 0; k < GridDimension[2]; k++) {
 	if (this->xEulerSweep(k, NumberOfSubgrids, SubgridFluxes, 
 			      GridGlobalStart, CellWidthTemp, GravityOn, 
@@ -111,11 +113,12 @@ int grid::SolvePPM_DE(int CycleNumber, int NumberOfSubgrids,
     // Update in y-direction
     if ((n % GridRank == 1) && nyz > 1) {
       if (UseCUDA == 0) {
+/*
 #pragma omp parallel for shared(NumberOfSubgrids, SubgridFluxes, GridGlobalStart, \
 				CellWidthTemp, GravityOn, NumberOfColours, \
 				colnum, Pressure) default(none) \
                 private(current_error)
-
+*/
       for (i = 0; i < GridDimension[0]; i++) {
 	if (this->yEulerSweep(i, NumberOfSubgrids, SubgridFluxes, 
 			      GridGlobalStart, CellWidthTemp, GravityOn, 
@@ -135,11 +138,12 @@ int grid::SolvePPM_DE(int CycleNumber, int NumberOfSubgrids,
     // Update in z-direction
     if ((n % GridRank == 2) && nzz > 1) {
       if (UseCUDA == 0) 
+/*
 #pragma omp parallel for shared(NumberOfSubgrids, SubgridFluxes, GridGlobalStart, \
 				CellWidthTemp, GravityOn, NumberOfColours, \
 				colnum, Pressure) default(none) \
                 private(current_error)
-
+*/
       for (j = 0; j < GridDimension[1]; j++) {
 	if (this->zEulerSweep(j, NumberOfSubgrids, SubgridFluxes, 
 			      GridGlobalStart, CellWidthTemp, GravityOn, 
